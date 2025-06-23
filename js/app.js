@@ -61,6 +61,7 @@ class BudgetCalendar {
         
         this.initializeElements();
         this.setupEventListeners();
+        this.setupTabNavigation();
         this.setDefaultDate();
         this.loadFixedExpensesValues();
         this.updateCalendar();
@@ -109,8 +110,51 @@ class BudgetCalendar {
             fixedInternet: document.getElementById('fixed-internet'),
             fixedCredit: document.getElementById('fixed-credit'),
             fixedAutres: document.getElementById('fixed-autres'),
-            fixedTotal: document.getElementById('fixed-total')
+            fixedTotal: document.getElementById('fixed-total'),
+            
+            // Tab elements
+            tabBtns: document.querySelectorAll('.tab-btn'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            
+            // Settings elements
+            exportBtn: document.getElementById('export-data'),
+            importBtn: document.getElementById('import-data'),
+            importFile: document.getElementById('import-file'),
+            clearBtn: document.getElementById('clear-data')
         };
+    }
+
+    // ===== TAB NAVIGATION =====
+    setupTabNavigation() {
+        this.elements.tabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tabName = e.target.getAttribute('data-tab');
+                this.switchTab(tabName);
+            });
+        });
+    }
+
+    switchTab(tabName) {
+        // Remove active class from all buttons and contents
+        this.elements.tabBtns.forEach(btn => btn.classList.remove('active'));
+        this.elements.tabContents.forEach(content => content.classList.remove('active'));
+        
+        // Add active class to selected button and content
+        const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+        const activeContent = document.getElementById(`tab-${tabName}`);
+        
+        if (activeBtn && activeContent) {
+            activeBtn.classList.add('active');
+            activeContent.classList.add('active');
+            
+            // Update charts if switching to analytics tab
+            if (tabName === 'analytics' && this.chartsInitialized) {
+                // Small delay to ensure tab is visible before updating charts
+                setTimeout(() => {
+                    this.updateCharts();
+                }, 100);
+            }
+        }
     }
 
     setupEventListeners() {
@@ -127,6 +171,12 @@ class BudgetCalendar {
         this.elements.fixedInternet.addEventListener('input', () => this.updateFixedExpenses());
         this.elements.fixedCredit.addEventListener('input', () => this.updateFixedExpenses());
         this.elements.fixedAutres.addEventListener('input', () => this.updateFixedExpenses());
+        
+        // Settings listeners
+        this.elements.exportBtn.addEventListener('click', () => this.exportData());
+        this.elements.importBtn.addEventListener('click', () => this.elements.importFile.click());
+        this.elements.importFile.addEventListener('change', (e) => this.importData(e));
+        this.elements.clearBtn.addEventListener('click', () => this.clearAllData());
     }
 
     // ===== UTILITY METHODS =====
