@@ -1,6 +1,7 @@
 // ===== STORAGE FUNCTIONS =====
 const STORAGE_KEY = 'budget-calendar-data';
 const FIXED_EXPENSES_KEY = 'budget-fixed-expenses';
+const THEME_KEY = 'budget-theme';
 
 function loadTransactions() {
     try {
@@ -48,6 +49,25 @@ function saveFixedExpenses(fixedExpenses) {
     }
 }
 
+function loadTheme() {
+    try {
+        return localStorage.getItem(THEME_KEY) || 'light';
+    } catch (error) {
+        console.error("Erreur lors du chargement du thème:", error);
+        return 'light';
+    }
+}
+
+function saveTheme(theme) {
+    try {
+        localStorage.setItem(THEME_KEY, theme);
+        return true;
+    } catch (error) {
+        console.error("Erreur lors de la sauvegarde du thème:", error);
+        return false;
+    }
+}
+
 // ===== MAIN APPLICATION CLASS =====
 class BudgetCalendar {
     constructor() {
@@ -55,6 +75,7 @@ class BudgetCalendar {
         this.selectedDate = null;
         this.transactions = loadTransactions();
         this.fixedExpenses = loadFixedExpenses();
+        this.currentTheme = loadTheme();
         this.filteredTransactions = [];
         this.charts = {};
         this.chartsInitialized = false;
@@ -62,6 +83,7 @@ class BudgetCalendar {
         this.initializeElements();
         this.setupEventListeners();
         this.setupTabNavigation();
+        this.applyTheme(this.currentTheme);
         this.setDefaultDate();
         this.loadFixedExpensesValues();
         this.updateCalendar();
@@ -120,7 +142,10 @@ class BudgetCalendar {
             exportBtn: document.getElementById('export-data'),
             importBtn: document.getElementById('import-data'),
             importFile: document.getElementById('import-file'),
-            clearBtn: document.getElementById('clear-data')
+            clearBtn: document.getElementById('clear-data'),
+            
+            // Theme elements
+            themeSelect: document.getElementById('theme-select')
         };
     }
 
@@ -177,6 +202,9 @@ class BudgetCalendar {
         this.elements.importBtn.addEventListener('click', () => this.elements.importFile.click());
         this.elements.importFile.addEventListener('change', (e) => this.importData(e));
         this.elements.clearBtn.addEventListener('click', () => this.clearAllData());
+        
+        // Theme listener
+        this.elements.themeSelect.addEventListener('change', (e) => this.changeTheme(e.target.value));
     }
 
     // ===== UTILITY METHODS =====
@@ -224,6 +252,43 @@ class BudgetCalendar {
     updateFixedExpensesTotal() {
         const total = Object.values(this.fixedExpenses).reduce((sum, val) => sum + val, 0);
         this.elements.fixedTotal.textContent = `${total.toFixed(2)} €`;
+    }
+
+    // ===== THEME METHODS =====
+    applyTheme(theme) {
+        // Supprimer l'ancien thème
+        document.documentElement.removeAttribute('data-theme');
+        
+        // Appliquer le nouveau thème
+        if (theme !== 'light') {
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+        
+        // Mettre à jour le sélecteur
+        if (this.elements.themeSelect) {
+            this.elements.themeSelect.value = theme;
+        }
+        
+        // Sauvegarder
+        this.currentTheme = theme;
+        saveTheme(theme);
+        
+        // Mettre à jour les graphiques si nécessaire
+        if (this.chartsInitialized) {
+            setTimeout(() => {
+                this.updateCharts();
+            }, 100);
+        }
+    }
+
+    changeTheme(newTheme) {
+        this.applyTheme(newTheme);
+        
+        // Animation de transition
+        document.body.style.transition = 'all 0.3s ease';
+        setTimeout(() => {
+            document.body.style.transition = '';
+        }, 300);
     }
 
     // ===== TRANSACTION METHODS =====
