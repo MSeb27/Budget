@@ -1,0 +1,225 @@
+/* ===== STYLES DES COMPOSANTS DE THÈME ===== */
+
+/* Notification de changement de thème */
+.theme-notification {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    pointer-events: none;
+    user-select: none;
+}
+
+.theme-notification-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.theme-notification-icon {
+    font-size: 18px;
+}
+
+.theme-notification-text {
+    font-weight: 600;
+}
+
+/* Grille d'aperçu des thèmes améliorée */
+.themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    max-height: 500px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--light-color);
+}
+
+.themes-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.themes-grid::-webkit-scrollbar-track {
+    background: var(--light-color);
+    border-radius: 4px;
+}
+
+.themes-grid::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.themes-grid::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}
+
+/* Carte d'aperçu de thème améliorée */
+.theme-preview-item {
+    background: var(--surface);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.theme-preview-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.theme-preview-item:hover::before {
+    left: 100%;
+}
+
+.theme-preview-item:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary-color);
+}
+
+.theme-preview-item:active {
+    transform: translateY(-2px) scale(1.01);
+}
+
+/* En-tête de la carte */
+.theme-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.theme-preview-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-color);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.theme-preview-category {
+    font-size: 10px;
+    color: var(--text-color);
+    opacity: 0.8;
+    background: var(--light-color);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--border-color);
+}
+
+/* Couleurs principales - plus grandes */
+.theme-preview-colors {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+    height: 32px;
+}
+
+.theme-preview-color {
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.theme-preview-color:hover {
+    transform: scale(1.15);
+    z-index: 2;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.8);
+}
+
+.theme-preview-color::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 10;
+}
+
+.theme-preview-color:hover::after {
+    opacity: 1;
+}
+
+/* Couleurs secondaires - plus petites */
+.theme-preview-secondary-colors {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 12px;
+    height: 20px;
+}
+
+.theme-secondary-color {
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.theme-secondary-color:hover {
+    transform: scale(1.2);
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Échantillon de fond et texte */
+.theme-preview-background-sample {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-preview-background-sample::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0.8;
+    background: inherit;
+    z-index: -1;
+}
+
+/* Description du thème */
+.theme-preview-description {
+    font-size: 12px;
+    color: var(--text-color);
+    opacity: 0.9;
+    line

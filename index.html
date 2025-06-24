@@ -8,6 +8,7 @@
 	<link rel="stylesheet" href="css/themes.css">
 	<link rel="stylesheet" href="css/charts.css">
 	<link rel="stylesheet" href="css/components.css">
+	<link rel="stylesheet" href="css/theme-components.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
 </head>
@@ -45,9 +46,11 @@
                                     <option value="EDF-GDF">⚡ EDF-GDF</option>
                                     <option value="Essence">⛽ Essence</option>
                                     <option value="Internet">🌐 Internet</option>
+                                    <option value="Internet Outils">🔧 Internet Outils</option>
                                     <option value="Logement">🏠 Logement</option>
                                     <option value="Loisirs">🎬 Loisirs</option>
                                     <option value="Loyer">🏠 Loyer</option>
+                                    <option value="Prêt">💳 Prêt</option>
                                     <option value="Remboursement crédit">🏦 Remboursement crédit</option>
                                     <option value="Retrait DAB">🏧 Retrait DAB</option>
                                     <option value="Salaire">💼 Salaire</option>
@@ -197,28 +200,39 @@
                     <div class="settings-card">
                         <h3>🎨 Apparence</h3>
                         <div class="theme-selector">
-                            <label for="theme-select">Thème</label>
-                            <select id="theme-select">
-                                <option value="light">☀️ Clair</option>
-                                <option value="dark">🌙 Sombre</option>
-                                <option value="blue">💙 Bleu</option>
-                                <option value="green">💚 Vert Nature</option>
-                                <option value="purple">💜 Violet Moderne</option>
-                                <option value="orange">🧡 Orange Énergique</option>
-                                <option value="minimal">⚪ Minimaliste</option>
-                                <option value="neon">✨ Néon</option>
-                            </select>
-                        </div>
+							<label for="theme-select">Thème</label>
+							<select id="theme-select">
+							<!-- Les options seront automatiquement générées -->
+							</select>
+						</div>
                         <div class="theme-preview">
-                            <div class="preview-card">
-                                <div class="preview-header">Aperçu</div>
-                                <div class="preview-content">
-                                    <div class="preview-primary"></div>
-                                    <div class="preview-secondary"></div>
-                                    <div class="preview-accent"></div>
-                                </div>
-                            </div>
-                        </div>
+    <div class="preview-card">
+        <div class="preview-header">Aperçu des couleurs</div>
+        
+        <!-- Couleurs principales (5 couleurs) -->
+        <div class="preview-content">
+            <div class="preview-primary" title="Couleur primaire"></div>
+            <div class="preview-secondary" title="Couleur de succès"></div>
+            <div class="preview-accent" title="Couleur d'accent"></div>
+            <div class="preview-quaternary" title="Couleur quaternaire"></div>
+            <div class="preview-quinary" title="Couleur quinary"></div>
+        </div>
+        
+        <!-- Couleurs secondaires (5 couleurs) -->
+        <div class="preview-content-secondary">
+            <div class="preview-senary" title="Couleur senary"></div>
+            <div class="preview-septenary" title="Couleur septenary"></div>
+            <div class="preview-warning" title="Couleur d'avertissement"></div>
+            <div class="preview-danger" title="Couleur de danger"></div>
+            <div class="preview-info" title="Couleur d'information"></div>
+        </div>
+        
+        <!-- Échantillon de texte -->
+        <div class="preview-text-sample">
+            Échantillon de texte sur fond
+        </div>
+    </div>
+</div>
                     </div>
                     
                     <div class="settings-card">

@@ -88,77 +88,20 @@ class BudgetCalendar {
         this.chartsInitialized = false;
         
         this.initializeElements();
-        this.setupEventListeners();
-        this.setupTabNavigation();
-        this.applyTheme(this.currentTheme);
-        this.setDefaultDate();
-        this.loadFixedExpensesValues();
-        this.updateRadioStyles(); // Initialiser l'apparence des radio buttons
-        this.updateCalendar();
-        this.updateTransactionsList();
-        
-        // Initialize charts after a small delay to ensure Chart.js is loaded
-        setTimeout(() => {
-            this.initializeCharts();
-        }, 100);
-    }
-
-    // ===== INITIALIZATION =====
-    initializeElements() {
-        this.elements = {
-            // Form elements
-            form: document.getElementById('transaction-form'),
-            label: document.getElementById('label'),
-            amount: document.getElementById('amount'),
-            category: document.getElementById('category'),
-            date: document.getElementById('date'),
-            typeExpense: document.getElementById('type-expense'),
-            typeIncome: document.getElementById('type-income'),
-            errorMessage: document.getElementById('error-message'),
-            
-            // Calendar elements
-            prevMonth: document.getElementById('prev-month'),
-            nextMonth: document.getElementById('next-month'),
-            monthYear: document.getElementById('month-year'),
-            calendarGrid: document.getElementById('calendar-grid'),
-            
-            // Summary elements
-            monthIncome: document.getElementById('month-income'),
-            monthExpenses: document.getElementById('month-expenses'),
-            monthBalance: document.getElementById('month-balance'),
-            totalBalance: document.getElementById('total-balance'),
-            
-            // Transactions elements
-            transactionsTitle: document.getElementById('transactions-title'),
-            selectedDayInfo: document.getElementById('selected-day-info'),
-            transactionsList: document.getElementById('transactions-list'),
-            noTransactions: document.getElementById('no-transactions'),
-            
-            // Fixed expenses elements
-            fixedLoyer: document.getElementById('fixed-loyer'),
-            fixedEdf: document.getElementById('fixed-edf'),
-            fixedInternet: document.getElementById('fixed-internet'),
-            fixedCredit: document.getElementById('fixed-credit'),
-            fixedAutres: document.getElementById('fixed-autres'),
-            fixedTotal: document.getElementById('fixed-total'),
-            
-            // Tab elements
-            tabBtns: document.querySelectorAll('.tab-btn'),
-            tabContents: document.querySelectorAll('.tab-content'),
-            
-            // Settings elements
-            exportBtn: document.getElementById('export-data'),
-            importBtn: document.getElementById('import-data'),
-            importFile: document.getElementById('import-file'),
-            clearBtn: document.getElementById('clear-data'),
-            
-            // Theme elements
-            themeSelect: document.getElementById('theme-select'),
-            
-            // Radio label elements
-            expenseLabel: document.getElementById('expense-label'),
-            incomeLabel: document.getElementById('income-label')
-        };
+		this.setupEventListeners();
+		this.setupTabNavigation();
+		this.initializeModernThemes();
+    
+		this.setDefaultDate();
+		this.loadFixedExpensesValues();
+		this.updateRadioStyles();
+		this.updateCalendar();
+		this.updateTransactionsList();
+    
+		// Initialize charts
+		setTimeout(() => {
+			this.initializeCharts();
+		}, 100);
     }
 
     // ===== TAB NAVIGATION =====
@@ -215,15 +158,16 @@ class BudgetCalendar {
         this.elements.importFile.addEventListener('change', (e) => this.importData(e));
         this.elements.clearBtn.addEventListener('click', () => this.clearAllData());
         
-        // Theme listener
-        this.elements.themeSelect.addEventListener('change', (e) => this.changeTheme(e.target.value));
-        
         // Category change listener for auto type selection
         this.elements.category.addEventListener('change', () => this.updateTypeBasedOnCategory());
         
         // Radio button listeners for visual updates
         this.elements.typeExpense.addEventListener('change', () => this.updateRadioStyles());
         this.elements.typeIncome.addEventListener('change', () => this.updateRadioStyles());
+
+        // Theme listener
+        this.setupThemeEventListeners();
+		
     }
 
     // ===== UTILITY METHODS =====
@@ -233,22 +177,22 @@ class BudgetCalendar {
     }
 
     updateTypeBasedOnCategory() {
-        const category = this.elements.category.value;
-        
-        // Catégories qui sont généralement des revenus
-        const incomeCategories = ['Salaire'];
-        
-        if (incomeCategories.includes(category)) {
-            this.elements.typeIncome.checked = true;
-            this.elements.typeExpense.checked = false;
-        } else if (category) {
-            // Toutes les autres catégories sont des dépenses
-            this.elements.typeExpense.checked = true;
-            this.elements.typeIncome.checked = false;
-        }
-        
-        this.updateRadioStyles();
+    const category = this.elements.category.value;
+    
+    // Catégories qui sont généralement des revenus
+    const incomeCategories = ['Salaire', 'Prêt'];
+    
+    if (incomeCategories.includes(category)) {
+        this.elements.typeIncome.checked = true;
+        this.elements.typeExpense.checked = false;
+    } else if (category) {
+        // Toutes les autres catégories sont des dépenses
+        this.elements.typeExpense.checked = true;
+        this.elements.typeIncome.checked = false;
     }
+    
+    this.updateRadioStyles();
+}
 
     updateRadioStyles() {
         // Vérifier que les éléments existent
@@ -413,41 +357,411 @@ class BudgetCalendar {
         }
     }
 
-    // ===== THEME METHODS =====
-    applyTheme(theme) {
-        // Supprimer l'ancien thème
-        document.documentElement.removeAttribute('data-theme');
+    // ===== METHODES THEME =====
+    
+    /**
+     * Initialise le système de thèmes 
+     */
+    initializeModernThemes() {
+        // Charger le thème sauvegardé
+        const savedTheme = ThemeManager.loadTheme();
         
-        // Appliquer le nouveau thème
-        if (theme !== 'light') {
-            document.documentElement.setAttribute('data-theme', theme);
-        }
-        
-        // Mettre à jour le sélecteur
+        // Initialiser le gestionnaire avec callback
+        ThemeManager.init(savedTheme, (theme, themeInfo) => {
+            console.log(`Thème changé: ${themeInfo.name} (${theme})`);
+            
+            // Mettre à jour les graphiques si nécessaire
+            if (this.chartsInitialized) {
+                setTimeout(() => {
+                    this.updateCharts();
+                }, 100);
+            }
+        });
+
+        // Configurer le sélecteur de thème
         if (this.elements.themeSelect) {
-            this.elements.themeSelect.value = theme;
-        }
-        
-        // Sauvegarder
-        this.currentTheme = theme;
-        saveTheme(theme);
-        
-        // Mettre à jour les graphiques si nécessaire
-        if (this.chartsInitialized) {
-            setTimeout(() => {
-                this.updateCharts();
-            }, 100);
+            ThemeManager.setupThemeSelector(this.elements.themeSelect, true);
         }
     }
 
-    changeTheme(newTheme) {
-        this.applyTheme(newTheme);
+    /**
+     * Configuration des événements de thème
+     */
+    setupThemeEventListeners() {
+        // Écouter les événements de thème personnalisés
+        document.addEventListener('themechange', (e) => {
+            console.log('Thème changé:', e.detail);
+            this.currentTheme = e.detail.theme;
+        });
+
+        // Raccourci pour ouvrir l'aperçu des thèmes (Ctrl+Shift+P)
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+                e.preventDefault();
+                this.createThemePreviewModal();
+            }
+        });
+    }
+
+    /**
+     * Basculer entre mode clair et sombre
+     */
+    toggleDarkMode() {
+        ThemeManager.toggleDarkMode();
+        this.currentTheme = ThemeManager.getCurrentTheme();
+    }
+
+    /**
+     * Passer au thème suivant
+     */
+    nextTheme() {
+        const newTheme = ThemeManager.nextTheme();
+        this.currentTheme = newTheme;
+        return newTheme;
+    }
+
+    /**
+     * Passer au thème précédent
+     */
+    previousTheme() {
+        const newTheme = ThemeManager.previousTheme();
+        this.currentTheme = newTheme;
+        return newTheme;
+    }
+
+    /**
+     * Créer un aperçu des thèmes disponibles
+     */
+    createThemePreviewModal() {
+    // Créer la modal
+    const modal = document.createElement('div');
+    modal.className = 'theme-modal-overlay';
+    modal.innerHTML = `
+        <div class="theme-modal">
+            <div class="theme-modal-header">
+                <h3>🎨 Galerie des Thèmes</h3>
+                <div class="theme-modal-actions">
+                    <button class="theme-action-btn" id="theme-random" title="Thème aléatoire">🎲</button>
+                    <button class="theme-action-btn" id="theme-favorites" title="Favoris">⭐</button>
+                    <button class="theme-modal-close" aria-label="Fermer">×</button>
+                </div>
+            </div>
+            <div class="theme-modal-content">
+                <div class="theme-navigation">
+                    <button class="theme-nav-btn" id="theme-prev">← Précédent</button>
+                    <button class="theme-nav-btn" id="theme-toggle">🌓 ${ThemeManager.isDarkTheme() ? 'Mode Clair' : 'Mode Sombre'}</button>
+                    <button class="theme-nav-btn" id="theme-next">Suivant →</button>
+                    <span class="theme-mode-indicator">${ThemeManager.isDarkTheme() ? '🌙 Sombre' : '☀️ Clair'}</span>
+                </div>
+                <div class="theme-stats">
+                    <span class="theme-stat">
+                        <strong>${Object.keys(ThemeManager.themes).length}</strong> thèmes disponibles
+                    </span>
+                    <span class="theme-stat">
+                        Actuel: <strong>${ThemeManager.themes[this.currentTheme].name}</strong>
+                    </span>
+                </div>
+                <div id="themes-grid-container"></div>
+                <div class="theme-shortcuts">
+                    <small>
+                        <strong>🎮 Raccourcis:</strong> 
+                        <span class="shortcut">Ctrl+Shift+T</span> Thème suivant | 
+                        <span class="shortcut">Ctrl+Shift+D</span> Clair/Sombre |
+                        <span class="shortcut">Ctrl+Shift+P</span> Cette fenêtre
+                    </small>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Styles améliorés pour la modal
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    `;
+
+    const modalContent = modal.querySelector('.theme-modal');
+    modalContent.style.cssText = `
+        background: var(--surface);
+        border-radius: var(--border-radius);
+        max-width: 95vw;
+        max-height: 95vh;
+        width: 900px;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        border: 2px solid var(--border-color);
+        transform: scale(0.8) translateY(-20px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+    `;
+
+    // Styles pour les nouveaux éléments
+    const modalHeader = modal.querySelector('.theme-modal-header');
+    modalHeader.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 2px solid var(--border-color);
+        background: linear-gradient(45deg, var(--surface), var(--light-color));
+    `;
+
+    const modalActions = modal.querySelector('.theme-modal-actions');
+    modalActions.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    `;
+
+    const themeStats = modal.querySelector('.theme-stats');
+    themeStats.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: var(--text-color);
+        opacity: 0.8;
+    `;
+
+    // Générer la grille des thèmes avec la nouvelle méthode
+    const gridContainer = modal.querySelector('#themes-grid-container');
+    const themesGrid = ThemeManager.createThemeGrid();
+    
+    // Marquer le thème actuel
+    const currentThemePreview = themesGrid.querySelector(`[data-theme-preview="${this.currentTheme}"]`);
+    if (currentThemePreview) {
+        currentThemePreview.classList.add('current-theme');
+    }
+
+    gridContainer.appendChild(themesGrid);
+
+    // Gestionnaires d'événements améliorés
+    const closeBtn = modal.querySelector('.theme-modal-close');
+    const prevBtn = modal.querySelector('#theme-prev');
+    const nextBtn = modal.querySelector('#theme-next');
+    const toggleBtn = modal.querySelector('#theme-toggle');
+    const randomBtn = modal.querySelector('#theme-random');
+    const favBtn = modal.querySelector('#theme-favorites');
+
+    // Styles pour les boutons d'action
+    modal.querySelectorAll('.theme-action-btn, .theme-modal-close').forEach(btn => {
+        btn.style.cssText = `
+            background: var(--light-color);
+            border: 2px solid var(--border-color);
+            color: var(--text-color);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: var(--transition);
+        `;
+    });
+
+    // Événements
+    closeBtn.addEventListener('click', () => this.closeThemeModal(modal));
+    
+    prevBtn.addEventListener('click', () => {
+        this.previousTheme();
+        this.updateModalCurrentTheme(modal);
+    });
+    
+    nextBtn.addEventListener('click', () => {
+        this.nextTheme();
+        this.updateModalCurrentTheme(modal);
+    });
+    
+    toggleBtn.addEventListener('click', () => {
+        this.toggleDarkMode();
+        this.updateModalCurrentTheme(modal);
+        // Mettre à jour le texte du bouton
+        toggleBtn.textContent = `🌓 ${ThemeManager.isDarkTheme() ? 'Mode Clair' : 'Mode Sombre'}`;
+    });
+
+    randomBtn.addEventListener('click', () => {
+        const themes = Object.keys(ThemeManager.themes);
+        const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+        ThemeManager.changeTheme(randomTheme);
+        this.currentTheme = randomTheme;
+        this.updateModalCurrentTheme(modal);
+    });
+
+    // Fermer en cliquant à l'extérieur
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            this.closeThemeModal(modal);
+        }
+    });
+
+    // Ajouter au DOM et animer
+    document.body.appendChild(modal);
+    
+    requestAnimationFrame(() => {
+        modal.style.opacity = '1';
+        modalContent.style.transform = 'scale(1) translateY(0)';
+    });
+
+    return modal;
+}
+
+    /**
+     * Met à jour l'indicateur de thème actuel dans la modal
+     */
+    updateModalCurrentTheme(modal) {
+        // Retirer l'ancienne sélection
+        const oldCurrent = modal.querySelector('.current-theme');
+        if (oldCurrent) {
+            oldCurrent.classList.remove('current-theme');
+        }
+
+        // Ajouter la nouvelle sélection
+        const newCurrent = modal.querySelector(`[data-theme-preview="${this.currentTheme}"]`);
+        if (newCurrent) {
+            newCurrent.classList.add('current-theme');
+        }
+
+        // Mettre à jour l'indicateur de mode
+        const modeIndicator = modal.querySelector('.theme-mode-indicator');
+        if (modeIndicator) {
+            modeIndicator.textContent = ThemeManager.isDarkTheme() ? 'Sombre' : 'Clair';
+        }
+    }
+
+    /**
+     * Ferme la modal de thème
+     */
+    closeThemeModal(modal) {
+        modal.style.opacity = '0';
+        const modalContent = modal.querySelector('.theme-modal');
+        modalContent.style.transform = 'scale(0.9)';
+        
+        setTimeout(() => {
+            if (modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+        }, 300);
+    }
+
+    /**
+     * Applique un thème
+     */
+    applyTheme(theme) {
+    ThemeManager.applyTheme(theme);
+    this.currentTheme = theme;
+    
+    // Mettre à jour les graphiques si nécessaire
+    if (this.chartsInitialized) {
+        setTimeout(() => {
+            this.updateCharts();
+        }, 100);
+    }
+    
+    // Mettre à jour l'aperçu des couleurs
+    this.updateThemePreview();
+}
+
+/**
+ * Met à jour l'aperçu des couleurs dans les paramètres
+ */
+updateThemePreview() {
+    const previewCard = document.querySelector('.preview-card');
+    if (previewCard) {
+        // Déclencher l'animation
+        previewCard.style.animation = 'none';
+        previewCard.offsetHeight; // Force reflow
+        previewCard.style.animation = 'themePreviewUpdate 0.5s ease-out';
+    }
+}
+
+/**
+ * Change de thème
+ */
+changeTheme(newTheme) {
+    if (ThemeManager.changeTheme(newTheme)) {
+        this.currentTheme = newTheme;
         
         // Animation de transition
-        document.body.style.transition = 'all 0.3s ease';
+        document.body.classList.add('theme-transition-active');
         setTimeout(() => {
-            document.body.style.transition = '';
+            document.body.classList.remove('theme-transition-active');
         }, 300);
+        
+        // Mettre à jour l'aperçu des couleurs
+        this.updateThemePreview();
+    }
+}
+
+    // ===== initializeElements =====
+    initializeElements() {
+        this.elements = {
+            form: document.getElementById('transaction-form'),
+            label: document.getElementById('label'),
+            amount: document.getElementById('amount'),
+            category: document.getElementById('category'),
+            date: document.getElementById('date'),
+            typeExpense: document.getElementById('type-expense'),
+            typeIncome: document.getElementById('type-income'),
+            errorMessage: document.getElementById('error-message'),
+            
+            // Calendar elements
+            prevMonth: document.getElementById('prev-month'),
+            nextMonth: document.getElementById('next-month'),
+            monthYear: document.getElementById('month-year'),
+            calendarGrid: document.getElementById('calendar-grid'),
+            
+            // Summary elements
+            monthIncome: document.getElementById('month-income'),
+            monthExpenses: document.getElementById('month-expenses'),
+            monthBalance: document.getElementById('month-balance'),
+            totalBalance: document.getElementById('total-balance'),
+            
+            // Transactions elements
+            transactionsTitle: document.getElementById('transactions-title'),
+            selectedDayInfo: document.getElementById('selected-day-info'),
+            transactionsList: document.getElementById('transactions-list'),
+            noTransactions: document.getElementById('no-transactions'),
+            
+            // Fixed expenses elements
+            fixedLoyer: document.getElementById('fixed-loyer'),
+            fixedEdf: document.getElementById('fixed-edf'),
+            fixedInternet: document.getElementById('fixed-internet'),
+            fixedCredit: document.getElementById('fixed-credit'),
+            fixedAutres: document.getElementById('fixed-autres'),
+            fixedTotal: document.getElementById('fixed-total'),
+            
+            // Tab elements
+            tabBtns: document.querySelectorAll('.tab-btn'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            
+            // Settings elements
+            exportBtn: document.getElementById('export-data'),
+            importBtn: document.getElementById('import-data'),
+            importFile: document.getElementById('import-file'),
+            clearBtn: document.getElementById('clear-data'),
+            
+            // Theme elements
+            themeSelect: document.getElementById('theme-select'),
+            
+            // Radio label elements
+            expenseLabel: document.getElementById('expense-label'),
+            incomeLabel: document.getElementById('income-label')
+        };
     }
 
     // ===== TRANSACTION METHODS =====

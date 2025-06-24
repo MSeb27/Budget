@@ -843,6 +843,208 @@ button:disabled {
     }
 }
 
+/* */
+.theme-preview {
+    margin-top: 16px;
+}
+
+.preview-card {
+    background: var(--surface);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    transition: var(--transition);
+    box-shadow: var(--shadow);
+}
+
+.preview-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.preview-content {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+/* Couleurs principales (ligne du haut) */
+.preview-primary {
+    background: var(--primary-color);
+    height: 32px;
+    border-radius: 6px;
+    position: relative;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.preview-secondary {
+    background: var(--success-color);
+    height: 32px;
+    border-radius: 6px;
+    position: relative;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.preview-accent {
+    background: var(--accent-color);
+    height: 32px;
+    border-radius: 6px;
+    position: relative;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+/* Couleurs additionnelles */
+.preview-quaternary {
+    background: var(--quaternary-color);
+    height: 32px;
+    border-radius: 6px;
+    position: relative;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.preview-quinary {
+    background: var(--quinary-color);
+    height: 32px;
+    border-radius: 6px;
+    position: relative;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+/* Deuxième ligne de couleurs */
+.preview-content-secondary {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.preview-senary {
+    background: var(--senary-color);
+    height: 24px;
+    border-radius: 4px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.preview-septenary {
+    background: var(--septenary-color);
+    height: 24px;
+    border-radius: 4px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.preview-warning {
+    background: var(--warning-color);
+    height: 24px;
+    border-radius: 4px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.preview-danger {
+    background: var(--danger-color);
+    height: 24px;
+    border-radius: 4px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.preview-info {
+    background: var(--info-color);
+    height: 24px;
+    border-radius: 4px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+/* Effets de survol */
+.preview-content > div:hover,
+.preview-content-secondary > div:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+    position: relative;
+}
+
+/* Tooltips pour les couleurs */
+.preview-primary::after { content: "Primaire"; }
+.preview-secondary::after { content: "Succès"; }
+.preview-accent::after { content: "Accent"; }
+.preview-quaternary::after { content: "Quaternaire"; }
+.preview-quinary::after { content: "Quinary"; }
+.preview-senary::after { content: "Senary"; }
+.preview-septenary::after { content: "Septenary"; }
+.preview-warning::after { content: "Warning"; }
+.preview-danger::after { content: "Danger"; }
+.preview-info::after { content: "Info"; }
+
+.preview-content > div::after,
+.preview-content-secondary > div::after {
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 10;
+}
+
+.preview-content > div:hover::after,
+.preview-content-secondary > div:hover::after {
+    opacity: 1;
+}
+
+/* Échantillon de texte */
+.preview-text-sample {
+    background: var(--background);
+    color: var(--text-color);
+    padding: 12px;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    margin-top: 8px;
+}
+
+/* Animation lors du changement de thème */
+.preview-card {
+    animation: themePreviewUpdate 0.5s ease-out;
+}
+
+@keyframes themePreviewUpdate {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.02);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 /* ===== LOADING COMPONENTS ===== */
 .loading-spinner {
     width: 40px;
