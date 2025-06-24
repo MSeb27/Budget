@@ -25,20 +25,22 @@ class StorageManager {
     }
 
     static loadFixedExpenses() {
-        try {
-            const data = localStorage.getItem(FIXED_EXPENSES_KEY);
-            return data ? JSON.parse(data) : {
-                loyer: 0,
-                edf: 0,
-                internet: 0,
-                credit: 0,
-                autres: 0
-            };
-        } catch (error) {
-            console.error("Erreur lors du chargement des dépenses fixes:", error);
-            return { loyer: 0, edf: 0, internet: 0, credit: 0, autres: 0 };
-        }
-    }
+    try {
+        const data = localStorage.getItem(FIXED_EXPENSES_KEY);
+        return data ? JSON.parse(data) : {
+            loyer: 0,
+            edf: 0,
+            internet: 0,
+            credit: 0,
+            impot: 0,  // Nouvelle ligne
+            autres: 0
+        };
+		}
+	catch (error) {
+        console.error("Erreur lors du chargement des dépenses fixes:", error);
+        return { loyer: 0, edf: 0, internet: 0, credit: 0, impot: 0, autres: 0 };
+		}
+	}
 
     static saveFixedExpenses(fixedExpenses) {
         try {

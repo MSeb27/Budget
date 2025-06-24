@@ -1,9 +1,17 @@
-import './calendar.js';
-import './transactions.js';
-import './themes.js';
-import './charts.js';
-import './storage.js';
-import './utils.js';
+// Exporter aussi les autres classes si elles sont définies dans ce fichier 
+if (typeof TransactionManager !== 'undefined') 
+	window.TransactionManager = TransactionManager; 
+if (typeof ChartsManager !== 'undefined') 
+	window.ChartsManager = ChartsManager; 
+if (typeof EnhancedDashboard !== 'undefined') 
+	window.EnhancedDashboard = EnhancedDashboard; 
+if (typeof BudgetPredictionsAI !== 'undefined') 
+	window.BudgetPredictionsAI = BudgetPredictionsAI; 
+if (typeof AdvancedSearchManager !== 'undefined')
+	window.AdvancedSearchManager = AdvancedSearchManager; 
+if (typeof ThemeManager !== 'undefined') 
+	window.ThemeManager = ThemeManager; 
+console.log('📦 Classes exposées dans le scope global');
 
 // ===== STORAGE FUNCTIONS =====
 const STORAGE_KEY = 'budget-calendar-data';
@@ -87,21 +95,108 @@ class BudgetCalendar {
         this.charts = {};
         this.chartsInitialized = false;
         
+        this.transactionManager = null;
+        this.predictionsAI = null;
+        this.chartManager = null;
+        this.enhancedDashboard = null;
+        this.advancedSearch = null;
+        
         this.initializeElements();
-		this.setupEventListeners();
-		this.setupTabNavigation();
-		this.initializeModernThemes();
-    
-		this.setDefaultDate();
-		this.loadFixedExpensesValues();
-		this.updateRadioStyles();
-		this.updateCalendar();
-		this.updateTransactionsList();
-    
-		// Initialize charts
-		setTimeout(() => {
-			this.initializeCharts();
-		}, 100);
+        this.setupEventListeners();
+        this.setupTabNavigation();
+        this.initializeModernThemes();
+        
+        this.setDefaultDate();
+        this.loadFixedExpensesValues();
+        this.updateRadioStyles();
+        
+        // Initialiser les gestionnaires AVANT les charts
+        this.initializeManagers();
+        
+        // Mettre à jour le calendrier avec les bonnes données
+        this.updateCalendar();
+        this.updateTransactionsList();
+        
+        // Délai plus long pour l'initialisation des charts
+        setTimeout(() => {
+            this.initializeCharts();
+        }, 500);
+    }
+
+
+	// Initalize 
+	initializeManagers() {
+        try {
+            // Initialiser le gestionnaire de transactions
+            this.transactionManager = new TransactionManager();
+            this.transactionManager.init();
+            
+            // IMPORTANT: Synchroniser les données
+            this.transactionManager.transactions = this.transactions;
+            this.transactionManager.fixedExpenses = this.fixedExpenses;
+            
+            // Callbacks pour synchronisation
+            this.transactionManager.setCallbacks(
+                (transactions) => {
+                    this.transactions = transactions;
+                    this.updateCalendar();
+                    this.updateTransactionsList();
+                },
+                (fixedExpenses) => {
+                    this.fixedExpenses = fixedExpenses;
+                    this.loadFixedExpensesValues();
+                }
+            );
+
+            // Initialiser l'IA de prédictions
+            this.predictionsAI = new BudgetPredictionsAI(this.transactionManager);
+
+            // Initialiser le gestionnaire de graphiques
+            this.chartManager = new ChartsManager(this.transactionManager);
+
+            // Initialiser le tableau de bord amélioré
+            this.enhancedDashboard = new EnhancedDashboard(
+                this.transactionManager, 
+                this.predictionsAI, 
+                this.chartManager
+            );
+
+            // Initialiser la recherche avancée
+            this.advancedSearch = new AdvancedSearchManager(this.transactionManager);
+            this.advancedSearch.createQuickFilters();
+
+            console.log('✅ Tous les gestionnaires initialisés avec succès');
+            
+            // Mise à jour immédiate après initialisation
+            setTimeout(() => {
+                this.updateAllComponents();
+            }, 200);
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'initialisation des gestionnaires:', error);
+        }
+    }
+
+	updateAllComponents() {
+        try {
+            // Mettre à jour le calendrier
+            this.updateCalendar();
+            this.updateTransactionsList();
+            
+            // Mettre à jour les charts si initialisés
+            if (this.chartsInitialized && this.chartManager) {
+                this.chartManager.updateAllCharts();
+            }
+            
+            // Mettre à jour le dashboard si initialisé
+            if (this.enhancedDashboard) {
+                this.enhancedDashboard.updateAllWidgets();
+            }
+            
+            console.log('✅ Tous les composants mis à jour');
+        } catch (error) {
+            console.error('❌ Erreur lors de la mise à jour des composants:', error);
+        }
     }
 
     // ===== TAB NAVIGATION =====
@@ -127,47 +222,142 @@ class BudgetCalendar {
             activeBtn.classList.add('active');
             activeContent.classList.add('active');
             
-            // Update charts if switching to analytics tab
-            if (tabName === 'analytics' && this.chartsInitialized) {
-                // Small delay to ensure tab is visible before updating charts
-                setTimeout(() => {
-                    this.updateCharts();
-                }, 100);
-            }
+            // Délais appropriés selon l'onglet
+            setTimeout(() => {
+                switch(tabName) {
+                    case 'analytics':
+                        if (this.chartsInitialized && this.chartManager) {
+                            this.chartManager.updateAllCharts();
+                        } else if (!this.chartsInitialized) {
+                            this.initializeCharts();
+                        }
+                        break;
+                        
+                    case 'dashboard':
+                        if (this.enhancedDashboard) {
+                            this.enhancedDashboard.updateAllWidgets();
+                        }
+                        break;
+                        
+                    case 'predictions':
+                        if (this.predictionsAI) {
+                            this.updatePredictionsTab();
+                        }
+                        break;
+                        
+                    case 'search':
+                        if (this.advancedSearch) {
+                            this.advancedSearch.applyFilters();
+                        }
+                        break;
+                }
+            }, 100);
+        }
+    }
+	
+	updatePredictionsTab() {
+        if (typeof refreshPredictions === 'function') {
+            refreshPredictions();
         }
     }
 
-    setupEventListeners() {
-        // Form submission
-        this.elements.form.addEventListener('submit', (e) => this.handleSubmit(e));
+setupEventListeners() {
+        console.log('🔧 Configuration des event listeners...'); 
         
-        // Calendar navigation
-        this.elements.prevMonth.addEventListener('click', () => this.previousMonth());
-        this.elements.nextMonth.addEventListener('click', () => this.nextMonth());
+        // Vérifier que les éléments existent avant d'ajouter les listeners 
+        const elements = [ 'prev-month', 'next-month', 'transaction-form', 'amount', 'category', 'label', 'date' ]; 
+        elements.forEach(id => { 
+            const element = document.getElementById(id); 
+            if (!element) { 
+                console.warn(`⚠️ Élément manquant: ${id}`); 
+            } 
+        }); 
+        
+        // Navigation du calendrier avec vérification 
+        const prevMonth = document.getElementById('prev-month'); // Correction: prev-month au lieu de prevMonth
+        const nextMonth = document.getElementById('next-month'); // Correction: next-month au lieu de nextMonth
+        
+        if (prevMonth) { 
+            prevMonth.addEventListener('click', () => this.previousMonth()); 
+        } else { 
+            console.warn('⚠️ Bouton prev-month non trouvé'); 
+        } 
+
+        if (nextMonth) { 
+            nextMonth.addEventListener('click', () => this.nextMonth()); 
+        } else { 
+            console.warn('⚠️ Bouton next-month non trouvé'); 
+        } 
+        
+        // Formulaire de transaction avec vérification 
+        const form = document.getElementById('transaction-form'); 
+        if (form) { 
+            form.addEventListener('submit', (e) => this.handleSubmit(e)); // Correction: handleSubmit au lieu de handleTransactionSubmit
+        } else { 
+            console.warn('⚠️ Formulaire transaction-form non trouvé'); 
+        } 
+
+        // Form submission (méthode alternative qui utilise this.elements)
+        if (this.elements.form) {
+            this.elements.form.addEventListener('submit', (e) => this.handleSubmit(e));
+        }
+        
+        // Calendar navigation (méthode alternative qui utilise this.elements)
+        if (this.elements.prevMonth) {
+            this.elements.prevMonth.addEventListener('click', () => this.previousMonth());
+        }
+        if (this.elements.nextMonth) {
+            this.elements.nextMonth.addEventListener('click', () => this.nextMonth());
+        }
         
         // Fixed expenses listeners
-        this.elements.fixedLoyer.addEventListener('input', () => this.updateFixedExpenses());
-        this.elements.fixedEdf.addEventListener('input', () => this.updateFixedExpenses());
-        this.elements.fixedInternet.addEventListener('input', () => this.updateFixedExpenses());
-        this.elements.fixedCredit.addEventListener('input', () => this.updateFixedExpenses());
-        this.elements.fixedAutres.addEventListener('input', () => this.updateFixedExpenses());
+        if (this.elements.fixedLoyer) {
+            this.elements.fixedLoyer.addEventListener('input', () => this.updateFixedExpenses());
+        }
+        if (this.elements.fixedEdf) {
+            this.elements.fixedEdf.addEventListener('input', () => this.updateFixedExpenses());
+        }
+        if (this.elements.fixedInternet) {
+            this.elements.fixedInternet.addEventListener('input', () => this.updateFixedExpenses());
+        }
+        if (this.elements.fixedCredit) {
+            this.elements.fixedCredit.addEventListener('input', () => this.updateFixedExpenses());
+        }
+        if (this.elements.fixedAutres) {
+            this.elements.fixedAutres.addEventListener('input', () => this.updateFixedExpenses());
+        }
         
         // Settings listeners
-        this.elements.exportBtn.addEventListener('click', () => this.exportData());
-        this.elements.importBtn.addEventListener('click', () => this.elements.importFile.click());
-        this.elements.importFile.addEventListener('change', (e) => this.importData(e));
-        this.elements.clearBtn.addEventListener('click', () => this.clearAllData());
+        if (this.elements.exportData) {
+            this.elements.exportData.addEventListener('click', () => this.exportData());
+        }
+        if (this.elements.importData) {
+            this.elements.importData.addEventListener('click', () => this.elements.importFile.click());
+        }
+        if (this.elements.importFile) {
+            this.elements.importFile.addEventListener('change', (e) => this.importData(e));
+        }
+        if (this.elements.clearData) {
+            this.elements.clearData.addEventListener('click', () => this.clearAllData());
+        }
         
         // Category change listener for auto type selection
-        this.elements.category.addEventListener('change', () => this.updateTypeBasedOnCategory());
+        if (this.elements.category) {
+            this.elements.category.addEventListener('change', () => this.updateTypeBasedOnCategory());
+        }
         
         // Radio button listeners for visual updates
-        this.elements.typeExpense.addEventListener('change', () => this.updateRadioStyles());
-        this.elements.typeIncome.addEventListener('change', () => this.updateRadioStyles());
+        if (this.elements.typeExpense) {
+            this.elements.typeExpense.addEventListener('change', () => this.updateRadioStyles());
+        }
+        if (this.elements.typeIncome) {
+            this.elements.typeIncome.addEventListener('change', () => this.updateRadioStyles());
+        }
 
         // Theme listener
         this.setupThemeEventListeners();
-		
+        
+        console.log('✅ Event listeners configurés'); 
     }
 
     // ===== UTILITY METHODS =====
@@ -177,22 +367,56 @@ class BudgetCalendar {
     }
 
     updateTypeBasedOnCategory() {
-    const category = this.elements.category.value;
+		const category = this.elements.category.value;
     
-    // Catégories qui sont généralement des revenus
-    const incomeCategories = ['Salaire', 'Prêt'];
+		// Catégories qui sont généralement des revenus
+		const incomeCategories = ['Salaire', 'Prêt'];
     
-    if (incomeCategories.includes(category)) {
-        this.elements.typeIncome.checked = true;
-        this.elements.typeExpense.checked = false;
-    } else if (category) {
-        // Toutes les autres catégories sont des dépenses
-        this.elements.typeExpense.checked = true;
-        this.elements.typeIncome.checked = false;
-    }
+		if (incomeCategories.includes(category)) 
+		{
+			this.elements.typeIncome.checked = true;
+			this.elements.typeExpense.checked = false;
+		} 
+		else if (category) 
+		{
+			// Toutes les autres catégories sont des dépenses
+			this.elements.typeExpense.checked = true;
+			this.elements.typeIncome.checked = false;
+		}
     
-    this.updateRadioStyles();
-}
+		// 4. REMPLIR AUTOMATIQUEMENT LE LIBELLÉ AVEC LA CATÉGORIE
+		if (category && !this.elements.label.value) {
+			this.elements.label.value = category;
+		}
+    
+		// 3. AFFECTER AUTOMATIQUEMENT LE MONTANT DES DÉPENSES CONTRAINTES
+		this.autoFillConstrainedExpense(category);
+		
+		this.updateRadioStyles();
+	}
+	
+	autoFillConstrainedExpense(category) {
+		const constrainedExpenseMapping = {
+			'Loyer': 'loyer',
+			'EDF-GDF': 'edf', 
+			'Internet': 'internet',
+			'Remboursement crédit': 'credit',
+			'Impôt': 'impot', 
+			'Autres': 'autres'
+		};
+    
+		const fixedExpenseKey = constrainedExpenseMapping[category];
+    
+		if (fixedExpenseKey && this.fixedExpenses[fixedExpenseKey] > 0) {
+			this.elements.amount.value = this.fixedExpenses[fixedExpenseKey].toFixed(2);
+        
+			// Indication visuelle
+			this.elements.amount.style.background = '#e8f5e8';
+			setTimeout(() => {
+				this.elements.amount.style.background = '';
+			}, 2000);
+		}
+	}
 
     updateRadioStyles() {
         // Vérifier que les éléments existent
@@ -227,27 +451,30 @@ class BudgetCalendar {
     }
 
     // ===== FIXED EXPENSES METHODS =====
-    loadFixedExpensesValues() {
-        this.elements.fixedLoyer.value = this.fixedExpenses.loyer || '';
-        this.elements.fixedEdf.value = this.fixedExpenses.edf || '';
-        this.elements.fixedInternet.value = this.fixedExpenses.internet || '';
-        this.elements.fixedCredit.value = this.fixedExpenses.credit || '';
-        this.elements.fixedAutres.value = this.fixedExpenses.autres || '';
+	loadFixedExpensesValues() {
+        // Vérifier que les éléments existent avant de les modifier
+        if (this.elements.fixedLoyer) this.elements.fixedLoyer.value = this.fixedExpenses.loyer || '';
+        if (this.elements.fixedEdf) this.elements.fixedEdf.value = this.fixedExpenses.edf || '';
+        if (this.elements.fixedInternet) this.elements.fixedInternet.value = this.fixedExpenses.internet || '';
+        if (this.elements.fixedCredit) this.elements.fixedCredit.value = this.fixedExpenses.credit || '';
+        if (this.elements.fixedAutres) this.elements.fixedAutres.value = this.fixedExpenses.autres || '';
+        
         this.updateFixedExpensesTotal();
     }
 
     updateFixedExpenses() {
-        this.fixedExpenses = {
-            loyer: parseFloat(this.elements.fixedLoyer.value) || 0,
-            edf: parseFloat(this.elements.fixedEdf.value) || 0,
-            internet: parseFloat(this.elements.fixedInternet.value) || 0,
-            credit: parseFloat(this.elements.fixedCredit.value) || 0,
-            autres: parseFloat(this.elements.fixedAutres.value) || 0
-        };
-        
-        saveFixedExpenses(this.fixedExpenses);
-        this.updateFixedExpensesTotal();
-    }
+		this.fixedExpenses = {
+			loyer: parseFloat(this.elements.fixedLoyer.value) || 0,
+			edf: parseFloat(this.elements.fixedEdf.value) || 0,
+			internet: parseFloat(this.elements.fixedInternet.value) || 0,
+			credit: parseFloat(this.elements.fixedCredit.value) || 0,
+			impot: parseFloat(this.elements.fixedImpot.value) || 0, 
+			autres: parseFloat(this.elements.fixedAutres.value) || 0
+		};
+    
+		saveFixedExpenses(this.fixedExpenses);
+		this.updateFixedExpensesTotal();
+	}
 
     updateFixedExpensesTotal() {
         const total = Object.values(this.fixedExpenses).reduce((sum, val) => sum + val, 0);
@@ -692,7 +919,7 @@ updateThemePreview() {
 /**
  * Change de thème
  */
-changeTheme(newTheme) {
+	changeTheme(newTheme) {
     if (ThemeManager.changeTheme(newTheme)) {
         this.currentTheme = newTheme;
         
@@ -705,64 +932,47 @@ changeTheme(newTheme) {
         // Mettre à jour l'aperçu des couleurs
         this.updateThemePreview();
     }
-}
+	}
 
     // ===== initializeElements =====
-    initializeElements() {
-        this.elements = {
-            form: document.getElementById('transaction-form'),
-            label: document.getElementById('label'),
-            amount: document.getElementById('amount'),
-            category: document.getElementById('category'),
-            date: document.getElementById('date'),
-            typeExpense: document.getElementById('type-expense'),
-            typeIncome: document.getElementById('type-income'),
-            errorMessage: document.getElementById('error-message'),
-            
-            // Calendar elements
-            prevMonth: document.getElementById('prev-month'),
-            nextMonth: document.getElementById('next-month'),
-            monthYear: document.getElementById('month-year'),
-            calendarGrid: document.getElementById('calendar-grid'),
-            
-            // Summary elements
-            monthIncome: document.getElementById('month-income'),
-            monthExpenses: document.getElementById('month-expenses'),
-            monthBalance: document.getElementById('month-balance'),
-            totalBalance: document.getElementById('total-balance'),
-            
-            // Transactions elements
-            transactionsTitle: document.getElementById('transactions-title'),
-            selectedDayInfo: document.getElementById('selected-day-info'),
-            transactionsList: document.getElementById('transactions-list'),
-            noTransactions: document.getElementById('no-transactions'),
-            
-            // Fixed expenses elements
-            fixedLoyer: document.getElementById('fixed-loyer'),
-            fixedEdf: document.getElementById('fixed-edf'),
-            fixedInternet: document.getElementById('fixed-internet'),
-            fixedCredit: document.getElementById('fixed-credit'),
-            fixedAutres: document.getElementById('fixed-autres'),
-            fixedTotal: document.getElementById('fixed-total'),
-            
-            // Tab elements
-            tabBtns: document.querySelectorAll('.tab-btn'),
-            tabContents: document.querySelectorAll('.tab-content'),
-            
-            // Settings elements
-            exportBtn: document.getElementById('export-data'),
-            importBtn: document.getElementById('import-data'),
-            importFile: document.getElementById('import-file'),
-            clearBtn: document.getElementById('clear-data'),
-            
-            // Theme elements
-            themeSelect: document.getElementById('theme-select'),
-            
-            // Radio label elements
-            expenseLabel: document.getElementById('expense-label'),
-            incomeLabel: document.getElementById('income-label')
-        };
+	initializeElements() {
+        this.elements = {};
+        
+        const elementIds = [
+            'transaction-form', 'label', 'amount', 'category', 'date',
+            'type-expense', 'type-income', 'error-message',
+            'prev-month', 'next-month', 'month-year', 'calendar-grid',
+            'month-income', 'month-expenses', 'month-balance', 'total-balance',
+            'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
+            'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-autres', 'fixed-total',
+            'export-data', 'import-data', 'import-file', 'clear-data', 'theme-select',
+            'expense-label', 'income-label'
+        ];
+
+        elementIds.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                // Convertir les tirets en camelCase pour les propriétés
+                const propName = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+                this.elements[propName] = element;
+            } else {
+                console.warn(`⚠️ Élément non trouvé: ${id}`);
+            }
+        });
+
+        // Éléments spéciaux
+        this.elements.tabBtns = document.querySelectorAll('.tab-btn') || [];
+        this.elements.tabContents = document.querySelectorAll('.tab-content') || [];
+        
+        // Alias pour compatibilité avec le code existant
+        this.elements.form = this.elements.transactionForm;
+        this.elements.exportBtn = this.elements.exportData;
+        this.elements.importBtn = this.elements.importData;
+        this.elements.clearBtn = this.elements.clearData;
+        
+        console.log('✅ Éléments DOM initialisés:', Object.keys(this.elements).length, 'éléments trouvés');
     }
+
 
     // ===== TRANSACTION METHODS =====
     handleSubmit(e) {
@@ -784,18 +994,28 @@ changeTheme(newTheme) {
             return;
         }
 
-        this.transactions.push(transaction);
-        if (saveTransactions(this.transactions)) {
-            this.resetForm();
-            this.updateCalendar();
-            this.updateTransactionsList();
-            if (this.chartsInitialized) {
-                this.updateCharts();
+        // Utiliser le transaction manager si disponible
+        if (this.transactionManager) {
+            try {
+                this.transactionManager.addTransaction(transaction);
+                this.transactions = this.transactionManager.getAllTransactions();
+            } catch (error) {
+                this.elements.errorMessage.textContent = error.message;
+                return;
             }
         } else {
-            this.elements.errorMessage.textContent = "Erreur lors de la sauvegarde";
+            // Fallback
+            this.transactions.push(transaction);
+            if (!saveTransactions(this.transactions)) {
+                this.elements.errorMessage.textContent = "Erreur lors de la sauvegarde";
+                return;
+            }
         }
+
+        this.resetForm();
+        this.updateAllComponents();
     }
+
 
     validateTransaction(transaction) {
         if (!transaction.label) return "Le libellé est obligatoire";
@@ -805,13 +1025,23 @@ changeTheme(newTheme) {
         return null;
     }
 
-    resetForm() {
-        this.elements.form.reset();
-        this.elements.typeExpense.checked = true; // Dépense par défaut
-        this.setDefaultDate();
-        this.updateRadioStyles(); // Mettre à jour l'apparence
-    }
-
+	resetForm() {
+		// Sauvegarder la date actuelle
+		const currentDate = this.elements.date.value;
+    
+		this.elements.form.reset();
+		this.elements.typeExpense.checked = true; // Dépense par défaut
+    
+		// Restaurer la date au lieu de la réinitialiser
+		if (currentDate) {
+			this.elements.date.value = currentDate;
+		} else {
+			this.setDefaultDate();
+		}
+    
+		this.updateRadioStyles(); // Mettre à jour l'apparence
+	}
+	
     deleteTransaction(id) {
         if (confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) {
             this.transactions = this.transactions.filter(t => t.id !== id);
@@ -1079,39 +1309,56 @@ changeTheme(newTheme) {
     // ===== CHARTS METHODS =====
     initializeCharts() {
         if (typeof Chart === 'undefined') {
-            console.log('Chart.js not loaded yet, retrying...');
-            setTimeout(() => this.initializeCharts(), 200);
+            console.log('Chart.js pas encore chargé, nouvelle tentative...');
+            setTimeout(() => this.initializeCharts(), 500);
             return;
         }
         
-        // Vérifier si Plotly est chargé pour les graphiques 3D
         if (typeof Plotly === 'undefined') {
-            console.log('Plotly.js not loaded yet, retrying...');
-            setTimeout(() => this.initializeCharts(), 200);
+            console.log('Plotly.js pas encore chargé, nouvelle tentative...');
+            setTimeout(() => this.initializeCharts(), 500);
             return;
         }
         
         try {
-            this.createCategoryChart();
-            this.createBudgetChart();
-            this.create3DCharts();
-            
-            this.chartsInitialized = true;
-            this.updateCharts();
+            // Utiliser le chart manager si disponible
+            if (this.chartManager) {
+                this.chartManager.init();
+                this.chartsInitialized = true;
+                console.log('✅ Charts initialisés via ChartManager');
+            } else {
+                // Fallback vers l'ancienne méthode
+                this.createCategoryChart();
+                this.createBudgetChart();
+                this.create3DCharts();
+                this.chartsInitialized = true;
+                this.updateCharts();
+                console.log('✅ Charts initialisés via méthode fallback');
+            }
         } catch (error) {
-            console.error('Error initializing charts:', error);
+            console.error('❌ Erreur lors de l\'initialisation des charts:', error);
+            // Retry après un délai plus long
+            setTimeout(() => this.initializeCharts(), 1000);
         }
     }
 
     updateCharts() {
-        if (!this.chartsInitialized) return;
+        if (!this.chartsInitialized) {
+            console.warn('Charts pas encore initialisés');
+            return;
+        }
         
         try {
-            this.updateCategoryChart();
-            this.updateBudgetChart();
-            this.update3DCharts();
+            if (this.chartManager) {
+                this.chartManager.updateAllCharts();
+            } else {
+                // Fallback vers l'ancienne méthode
+                this.updateCategoryChart();
+                this.updateBudgetChart();
+                this.update3DCharts();
+            }
         } catch (error) {
-            console.error('Error updating charts:', error);
+            console.error('❌ Erreur lors de la mise à jour des charts:', error);
         }
     }
 
@@ -1664,16 +1911,307 @@ changeTheme(newTheme) {
     }
 }
 
+
+// ===== FONCTIONS GLOBALES POUR LES PRÉDICTIONS =====
+// Ces fonctions sont appelées depuis le HTML des boutons dans l'onglet Prédictions
+
+window.refreshPredictions = function() {
+    console.log('🔄 Actualisation des prédictions...');
+    if (window.calendar?.predictionsAI) {
+        updatePredictionsContent();
+    } else {
+        console.warn('⚠️ Prédictions AI non disponible, tentative de réinitialisation...');
+        if (window.calendar) {
+            window.calendar.initializeManagers();
+            setTimeout(() => {
+                if (window.calendar?.predictionsAI) {
+                    updatePredictionsContent();
+                } else {
+                    showPredictionsError('Le moteur de prédictions n\'est pas disponible');
+                }
+            }, 1000);
+        }
+    }
+};
+
+
+window.exportPredictions = function() {
+    console.log('Export des prédictions...');
+    if (window.calendar && window.calendar.predictionsAI) {
+        try {
+            // Ici vous pouvez implémenter l'export réel
+            alert('Fonctionnalité d\'export des prédictions en cours de développement');
+        } catch (error) {
+            console.error('Erreur lors de l\'export:', error);
+            alert('Erreur lors de l\'export des prédictions');
+        }
+    } else {
+        alert('Le moteur de prédictions n\'est pas disponible');
+    }
+};
+
+window.showPredictionSettings = function() {
+    console.log('Ouverture des paramètres IA...');
+    // Ici vous pouvez implémenter la modal des paramètres
+    alert('Paramètres IA en cours de développement');
+};
+
+// Fonction principale pour mettre à jour le contenu des prédictions
+async function updatePredictionsContent() {
+    try {
+        showPredictionsLoading();
+        
+        const predictionsAI = window.calendar.predictionsAI;
+        
+        // Vérifier que l'AI est bien initialisée
+        if (!predictionsAI) {
+            throw new Error('Moteur de prédictions non initialisé');
+        }
+        
+        // Obtenir les prédictions avec gestion d'erreur individuelle
+        const results = {};
+        
+        try {
+            results.predictions = await predictionsAI.predictNextMonthExpenses();
+        } catch (e) {
+            console.error('Erreur prédiction mois suivant:', e);
+            results.predictions = { totalAmount: 0, confidence: 0, recommendations: [] };
+        }
+        
+        try {
+            results.yearEnd = await predictionsAI.predictYearEndBalance();
+        } catch (e) {
+            console.error('Erreur prédiction fin d\'année:', e);
+            results.yearEnd = { currentBalance: 0, predictedYearEndBalance: 0, confidenceLevel: 0 };
+        }
+        
+        try {
+            results.anomalies = predictionsAI.detectAnomalies();
+        } catch (e) {
+            console.error('Erreur détection anomalies:', e);
+            results.anomalies = [];
+        }
+        
+        try {
+            results.recurring = predictionsAI.predictRecurringExpenses();
+        } catch (e) {
+            console.error('Erreur dépenses récurrentes:', e);
+            results.recurring = [];
+        }
+        
+        try {
+            results.dataQuality = predictionsAI.assessDataQuality();
+        } catch (e) {
+            console.error('Erreur qualité des données:', e);
+            results.dataQuality = { score: 0, level: 'poor', monthsOfData: 0, issues: [] };
+        }
+        
+        // Mettre à jour chaque section
+        updatePredictionCard('next-month-prediction', 'next-month', results.predictions);
+        updatePredictionCard('year-end-prediction', 'year-end', results.yearEnd);
+        updatePredictionCard('anomalies-detection', 'anomalies', results.anomalies);
+        updatePredictionCard('recurring-expenses', 'recurring', results.recurring);
+        updatePredictionCard('data-quality-assessment', 'data-quality', results.dataQuality);
+        updatePredictionCard('ai-recommendations', 'recommendations', results.predictions.recommendations || []);
+        
+        console.log('✅ Prédictions mises à jour avec succès');
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de la mise à jour des prédictions:', error);
+        showPredictionsError('Erreur lors du calcul des prédictions: ' + error.message);
+    }
+}
+
+// Fonction pour afficher les indicateurs de chargement
+function showPredictionsLoading() {
+    const predictionCards = [
+        'next-month-prediction',
+        'year-end-prediction', 
+        'anomalies-detection',
+        'recurring-expenses',
+        'data-quality-assessment',
+        'ai-recommendations'
+    ];
+    
+    predictionCards.forEach(cardId => {
+        const element = document.getElementById(cardId);
+        if (element) {
+            element.innerHTML = '<div class="prediction-loading"><div class="loading-dots">Calcul en cours</div></div>';
+        }
+    });
+}
+
+// Fonction pour afficher les erreurs
+function showPredictionsError(message) {
+    const predictionCards = [
+        'next-month-prediction',
+        'year-end-prediction', 
+        'anomalies-detection',
+        'recurring-expenses',
+        'data-quality-assessment',
+        'ai-recommendations'
+    ];
+    
+    predictionCards.forEach(cardId => {
+        const element = document.getElementById(cardId);
+        if (element) {
+            element.innerHTML = `<div class="prediction-error">❌ ${message}</div>`;
+        }
+    });
+}
+
+// Fonction pour mettre à jour chaque carte de prédiction
+function updatePredictionCard(elementId, type, data) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    try {
+        switch (type) {
+            case 'next-month':
+                element.innerHTML = `
+                    <div class="prediction-value">${data.totalAmount.toFixed(2)}€</div>
+                    <div class="prediction-confidence">Confiance: ${(data.confidence * 100).toFixed(0)}%</div>
+                    ${data.trends && data.trends.overall ? 
+                        `<div class="prediction-trend">Tendance: ${getTrendText(data.trends.overall.direction)}</div>` : ''}
+                `;
+                break;
+                
+            case 'year-end':
+                element.innerHTML = `
+                    <div class="prediction-value">${data.predictedYearEndBalance.toFixed(2)}€</div>
+                    <div class="prediction-detail">Solde actuel: ${data.currentBalance.toFixed(2)}€</div>
+                    <div class="prediction-detail">Confiance: ${(data.confidenceLevel * 100).toFixed(0)}%</div>
+                `;
+                break;
+                
+            case 'anomalies':
+                if (data.length > 0) {
+                    element.innerHTML = `
+                        <div class="anomalies-count">${data.length} anomalie(s) détectée(s)</div>
+                        <div class="anomalies-list">
+                            ${data.slice(0, 3).map(anomaly => 
+                                `<div class="anomaly-item">• ${anomaly.description}</div>`
+                            ).join('')}
+                            ${data.length > 3 ? `<div class="anomaly-more">+${data.length - 3} autres</div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    element.innerHTML = '<div class="no-anomalies">✅ Aucune anomalie détectée</div>';
+                }
+                break;
+                
+            case 'recurring':
+                if (data.length > 0) {
+                    element.innerHTML = `
+                        <div class="recurring-count">${data.length} dépense(s) récurrente(s)</div>
+                        <div class="recurring-list">
+                            ${data.slice(0, 3).map(recurring => 
+                                `<div class="recurring-item">• ${recurring.category}: ${recurring.amount.toFixed(2)}€</div>`
+                            ).join('')}
+                            ${data.length > 3 ? `<div class="recurring-more">+${data.length - 3} autres</div>` : ''}
+                        </div>
+                    `;
+                } else {
+                    element.innerHTML = '<div class="no-recurring">📋 Aucune dépense récurrente identifiée</div>';
+                }
+                break;
+                
+            case 'data-quality':
+                element.innerHTML = `
+                    <div class="quality-score">Score: ${data.score}/100</div>
+                    <div class="quality-level">Niveau: ${getQualityLevelText(data.level)}</div>
+                    <div class="quality-months">${data.monthsOfData} mois de données</div>
+                    ${data.issues.length > 0 ? 
+                        `<div class="quality-issues">⚠️ ${data.issues.length} problème(s) détecté(s)</div>` : 
+                        '<div class="quality-good">✅ Qualité satisfaisante</div>'}
+                `;
+                break;
+                
+            case 'recommendations':
+                if (data.length > 0) {
+                    element.innerHTML = `
+                        <div class="recommendations-list">
+                            ${data.slice(0, 3).map(rec => 
+                                `<div class="recommendation-item">
+                                    <div class="rec-title">💡 ${rec.title}</div>
+                                    <div class="rec-description">${rec.description}</div>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    `;
+                } else {
+                    element.innerHTML = '<div class="no-recommendations">🤖 Aucune recommandation pour le moment</div>';
+                }
+                break;
+        }
+    } catch (error) {
+        console.error(`Erreur lors de la mise à jour de ${elementId}:`, error);
+        element.innerHTML = '<div class="prediction-error">❌ Erreur d\'affichage</div>';
+    }
+}
+
+// Fonctions utilitaires pour l'affichage
+function getTrendText(direction) {
+    switch (direction) {
+        case 'increasing': return '📈 En hausse';
+        case 'decreasing': return '📉 En baisse';
+        case 'stable': return '➡️ Stable';
+        default: return '❓ Indéterminé';
+    }
+}
+
+function getQualityLevelText(level) {
+    switch (level) {
+        case 'excellent': return '🌟 Excellent';
+        case 'good': return '✅ Bon';
+        case 'fair': return '⚠️ Correct';
+        case 'poor': return '❌ Insuffisant';
+        default: return '❓ Non évalué';
+    }
+}
+
 // ===== APPLICATION INITIALIZATION =====
 let calendar;
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     try {
-        calendar = new BudgetCalendar();
-        // Expose calendar globally for button callbacks
-        window.calendar = calendar;
+        console.log('🚀 Initialisation de l\'application Budget...');
+        
+        // Vérifier que tous les scripts sont chargés
+        const requiredClasses = [
+            'TransactionManager', 'BudgetPredictionsAI', 'ChartsManager', 
+            'EnhancedDashboard', 'AdvancedSearchManager', 'ThemeManager'
+        ];
+        
+        const missingClasses = requiredClasses.filter(className => typeof window[className] === 'undefined');
+        
+        if (missingClasses.length > 0) {
+            console.warn('⚠️ Classes manquantes:', missingClasses);
+            // Attendre un peu plus longtemps
+            setTimeout(() => {
+                calendar = new BudgetCalendar();
+                window.calendar = calendar;
+            }, 1000);
+        } else {
+            calendar = new BudgetCalendar();
+            window.calendar = calendar;
+        }
+        
+        console.log('✅ Application Budget initialisée avec succès');
+        
     } catch (error) {
-        console.error('Error initializing BudgetCalendar:', error);
+        console.error('❌ Erreur lors de l\'initialisation:', error);
+        
+        // Tentative de récupération
+        setTimeout(() => {
+            try {
+                calendar = new BudgetCalendar();
+                window.calendar = calendar;
+                console.log('✅ Application récupérée après erreur');
+            } catch (retryError) {
+                console.error('❌ Échec de la récupération:', retryError);
+            }
+        }, 2000);
     }
 });

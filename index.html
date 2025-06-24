@@ -9,6 +9,7 @@
 	<link rel="stylesheet" href="css/charts.css">
 	<link rel="stylesheet" href="css/components.css">
 	<link rel="stylesheet" href="css/theme-components.css">
+	<link rel="stylesheet" href="css/enhanced-features.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
 </head>
@@ -23,6 +24,15 @@
             </button>
             <button class="tab-btn" data-tab="analytics">
                 📊 Analyses
+            </button>
+			<button class="tab-btn" data-tab="dashboard">
+                📊 Dashboard
+            </button>
+            <button class="tab-btn" data-tab="search">
+                🔍 Recherche
+            </button>
+            <button class="tab-btn" data-tab="predictions">
+                🔮 Prédictions
             </button>
             <button class="tab-btn" data-tab="settings">
                 ⚙️ Paramètres
@@ -41,23 +51,24 @@
                                 <label for="category">Catégorie</label>
                                 <select id="category" required>
                                     <option value="">Sélectionner...</option>
-                                    <option value="Alimentation">🍕 Alimentation</option>
-                                    <option value="Cigarettes">🚬 Cigarettes</option>
-                                    <option value="EDF-GDF">⚡ EDF-GDF</option>
-                                    <option value="Essence">⛽ Essence</option>
-                                    <option value="Internet">🌐 Internet</option>
-                                    <option value="Internet Outils">🔧 Internet Outils</option>
-                                    <option value="Logement">🏠 Logement</option>
-                                    <option value="Loisirs">🎬 Loisirs</option>
-                                    <option value="Loyer">🏠 Loyer</option>
-                                    <option value="Prêt">💳 Prêt</option>
-                                    <option value="Remboursement crédit">🏦 Remboursement crédit</option>
-                                    <option value="Retrait DAB">🏧 Retrait DAB</option>
-                                    <option value="Salaire">💼 Salaire</option>
-                                    <option value="Santé">🏥 Santé</option>
-                                    <option value="Transport">🚗 Transport</option>
-                                    <option value="Vêtements">👕 Vêtements</option>
-                                    <option value="Autres">📦 Autres</option>
+									<option value="Alimentation">🍕 Alimentation</option>
+								    <option value="Cigarettes">🚬 Cigarettes</option>
+    								<option value="EDF-GDF">⚡ EDF-GDF</option>
+    								<option value="Essence">⛽ Essence</option>
+    								<option value="Impôt">🏛️ Impôt</option>
+    								<option value="Internet">🌐 Internet</option>
+    								<option value="Internet Outils">🔧 Internet Outils</option>
+    								<option value="Logement">🏠 Logement</option>
+    								<option value="Loisirs">🎬 Loisirs</option>
+    								<option value="Loyer">🏠 Loyer</option>
+    								<option value="Prêt">💳 Prêt</option>
+    								<option value="Remboursement crédit">🏦 Remboursement crédit</option>
+    								<option value="Retrait DAB">🏧 Retrait DAB</option>
+    								<option value="Salaire">💼 Salaire</option>
+    								<option value="Santé">🏥 Santé</option>
+    								<option value="Transport">🚗 Transport</option>
+    								<option value="Vêtements">👕 Vêtements</option>
+    								<option value="Autres">📦 Autres</option>
                                 </select>
                             </div>
                             
@@ -191,6 +202,173 @@
             </div>
         </div>
 
+		<!-- Tab Content: Dashboard -->
+        <div class="tab-content" id="tab-dashboard">
+            <div id="enhanced-dashboard" class="enhanced-dashboard">
+                <!-- Le contenu sera généré automatiquement par enhanced-dashboard.js -->
+            </div>
+        </div>
+		
+		<!-- Tab Content: Recherche Avancée -->
+        <div class="tab-content" id="tab-search">
+            <div class="advanced-search-container">
+                <div class="search-header">
+                    <h2>🔍 Recherche Avancée</h2>
+                    <div class="search-input-container">
+                        <div class="search-icon">🔍</div>
+                        <input type="text" id="advanced-search-input" placeholder="Rechercher dans vos transactions... (essayez '>100', 'alimentation', etc.)" />
+                    </div>
+                    <div class="quick-filters" id="quick-filters">
+                        <!-- Les filtres rapides seront générés par JavaScript -->
+                    </div>
+                    <div class="filter-toggle">
+                        <button class="btn-primary" onclick="toggleFilterPanel()">📊 Filtres Avancés</button>
+                        <span id="filter-status" class="filter-status filters-inactive"></span>
+                    </div>
+                </div>
+
+                <div class="filter-panel" id="filter-panel">
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <h4>💰 Type de Transaction</h4>
+                            <div class="filter-checkboxes" id="type-filters">
+                                <label class="filter-checkbox">
+                                    <input type="checkbox" value="income" />
+                                    <span>💰 Revenus</span>
+                                </label>
+                                <label class="filter-checkbox">
+                                    <input type="checkbox" value="expense" />
+                                    <span>💸 Dépenses</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <h4>📂 Catégories</h4>
+                            <div class="filter-checkboxes" id="category-filters">
+                                <!-- Les catégories seront générées dynamiquement -->
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <h4>📅 Période</h4>
+                            <div class="filter-range">
+                                <input type="date" id="date-range-start" placeholder="Date début" />
+                                <span>à</span>
+                                <input type="date" id="date-range-end" placeholder="Date fin" />
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <h4>💵 Montant</h4>
+                            <div class="filter-range">
+                                <input type="number" id="amount-min" placeholder="Min (€)" step="0.01" />
+                                <span>à</span>
+                                <input type="number" id="amount-max" placeholder="Max (€)" step="0.01" />
+                            </div>
+                        </div>
+
+                        <div class="filter-group">
+                            <h4>📋 Tri</h4>
+                            <select id="sort-select">
+                                <option value="date">Date</option>
+                                <option value="amount">Montant</option>
+                                <option value="label">Libellé</option>
+                                <option value="category">Catégorie</option>
+                            </select>
+                            <select id="sort-order">
+                                <option value="desc">Décroissant</option>
+                                <option value="asc">Croissant</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <div class="filter-presets" id="filter-presets">
+                            <!-- Les filtres sauvegardés seront affichés ici -->
+                        </div>
+                        <div class="filter-buttons">
+                            <button class="btn-secondary" id="clear-filters">🗑️ Effacer</button>
+                            <button class="btn-primary" id="save-filter">💾 Sauvegarder</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="search-results-container">
+                    <div class="search-results-header">
+                        <h3>📋 Résultats de recherche</h3>
+                        <div class="results-info">
+                            <span id="results-count">0 résultats</span>
+                            <button class="btn-secondary" onclick="exportSearchResults()">📥 Exporter</button>
+                        </div>
+                    </div>
+                    <div id="search-results" class="search-results">
+                        <!-- Les résultats seront affichés ici -->
+                    </div>
+                    <div id="no-search-transactions" class="no-data" style="display: none;">
+                        Aucune transaction trouvée
+                    </div>
+                </div>
+            </div>
+        </div>
+		
+		<!-- Tab Content: Prédictions -->
+		<div class="tab-content" id="tab-predictions">
+            <div class="predictions-container">
+                <h2>🔮 Prédictions Financières</h2>
+                
+                <div class="predictions-grid">
+                    <div class="prediction-card main-prediction">
+                        <h3>📈 Prédiction Mois Prochain</h3>
+                        <div id="next-month-prediction">
+                            <div class="prediction-loading">Calcul en cours...</div>
+                        </div>
+                    </div>
+
+                    <div class="prediction-card">
+                        <h3>🎯 Solde Fin d'Année</h3>
+                        <div id="year-end-prediction">
+                            <div class="prediction-loading">Calcul en cours...</div>
+                        </div>
+                    </div>
+
+                    <div class="prediction-card">
+                        <h3>⚠️ Anomalies Détectées</h3>
+                        <div id="anomalies-detection">
+                            <div class="prediction-loading">Analyse en cours...</div>
+                        </div>
+                    </div>
+
+                    <div class="prediction-card">
+                        <h3>🔄 Dépenses Récurrentes</h3>
+                        <div id="recurring-expenses">
+                            <div class="prediction-loading">Détection en cours...</div>
+                        </div>
+                    </div>
+
+                    <div class="prediction-card full-width">
+                        <h3>📊 Qualité des Données</h3>
+                        <div id="data-quality-assessment">
+                            <div class="prediction-loading">Évaluation en cours...</div>
+                        </div>
+                    </div>
+
+                    <div class="prediction-card full-width">
+                        <h3>💡 Recommandations Intelligentes</h3>
+                        <div id="ai-recommendations">
+                            <div class="prediction-loading">Génération en cours...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="prediction-actions">
+                    <button class="btn-primary" onclick="refreshPredictions()">🔄 Actualiser les Prédictions</button>
+                    <button class="btn-secondary" onclick="exportPredictions()">📊 Exporter le Rapport</button>
+                    <button class="btn-secondary" onclick="showPredictionSettings()">⚙️ Paramètres IA</button>
+                </div>
+            </div>
+        </div>
+		
         <!-- Tab Content: Settings -->
         <div class="tab-content" id="tab-settings">
             <div class="settings-container">
@@ -206,33 +384,33 @@
 							</select>
 						</div>
                         <div class="theme-preview">
-    <div class="preview-card">
-        <div class="preview-header">Aperçu des couleurs</div>
-        
-        <!-- Couleurs principales (5 couleurs) -->
-        <div class="preview-content">
-            <div class="preview-primary" title="Couleur primaire"></div>
-            <div class="preview-secondary" title="Couleur de succès"></div>
-            <div class="preview-accent" title="Couleur d'accent"></div>
-            <div class="preview-quaternary" title="Couleur quaternaire"></div>
-            <div class="preview-quinary" title="Couleur quinary"></div>
-        </div>
-        
-        <!-- Couleurs secondaires (5 couleurs) -->
-        <div class="preview-content-secondary">
-            <div class="preview-senary" title="Couleur senary"></div>
-            <div class="preview-septenary" title="Couleur septenary"></div>
-            <div class="preview-warning" title="Couleur d'avertissement"></div>
-            <div class="preview-danger" title="Couleur de danger"></div>
-            <div class="preview-info" title="Couleur d'information"></div>
-        </div>
-        
-        <!-- Échantillon de texte -->
-        <div class="preview-text-sample">
-            Échantillon de texte sur fond
-        </div>
-    </div>
-</div>
+                            <div class="preview-card">
+                                <div class="preview-header">Aperçu des couleurs</div>
+                                
+                                <!-- Couleurs principales (5 couleurs) -->
+                                <div class="preview-content">
+                                    <div class="preview-primary" title="Couleur primaire"></div>
+                                    <div class="preview-secondary" title="Couleur de succès"></div>
+                                    <div class="preview-accent" title="Couleur d'accent"></div>
+                                    <div class="preview-quaternary" title="Couleur quaternaire"></div>
+                                    <div class="preview-quinary" title="Couleur quinary"></div>
+                                </div>
+                                
+                                <!-- Couleurs secondaires (5 couleurs) -->
+                                <div class="preview-content-secondary">
+                                    <div class="preview-senary" title="Couleur senary"></div>
+                                    <div class="preview-septenary" title="Couleur septenary"></div>
+                                    <div class="preview-warning" title="Couleur d'avertissement"></div>
+                                    <div class="preview-danger" title="Couleur de danger"></div>
+                                    <div class="preview-info" title="Couleur d'information"></div>
+                                </div>
+                                
+                                <!-- Échantillon de texte -->
+                                <div class="preview-text-sample">
+                                    Échantillon de texte sur fond
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="settings-card">
@@ -285,6 +463,45 @@
     </div>
 
     <!-- Scripts -->
-    <script type="module" src="js/app.js"></script>
+<!-- 1. Utilitaires et helpers d'abord --> 
+<script src="js/utils.js"></script> 
+<!-- 2. Classes de base --> 
+<script src="js/transactions.js"></script> 
+<script src="js/calendar.js"></script> 
+<script src="js/charts.js"></script> 
+<script src="js/enhanced-dashboard.js"></script> 
+<script src="js/search-filters.js"></script> 
+<script src="js/predictions.js"></script> 
+<script src="js/themes.js"></script> 
+<!-- 3. Script principal SANS type="module" --> 
+<script src="js/app.js"></script>
+<!-- 4. Script de débogage --> 
+<script> // ===== SCRIPT DE DÉBOGAGE  ===== 
+window.debugBudgetApp = function() { console.log('🔍 === DIAGNOSTIC COMPLET DE L\'APPLICATION ==='); 
+// Vérifier les dépendances 
+console.log('📚 Vérification des dépendances:'); console.log(' Chart.js:', typeof Chart !== 'undefined' ? '✅' : '❌'); console.log(' Plotly.js:', typeof Plotly !== 'undefined' ? '✅' : '❌'); 
+// Vérifier les classes 
+console.log('🏗️ Vérification des classes:'); const requiredClasses = [ 'TransactionManager', 'BudgetPredictionsAI', 'ChartsManager', 'EnhancedDashboard', 'AdvancedSearchManager', 'ThemeManager', 'BudgetCalendar' ]; const missingClasses = []; requiredClasses.forEach(className => { const exists = typeof window[className] !== 'undefined'; console.log(` ${className}:`, exists ? '✅' : '❌'); if (!exists) missingClasses.push(className); }); 
+// Vérifier l'instance principale 
+console.log('🎯 Vérification de l\'instance principale:'); console.log(' window.calendar:', window.calendar ? '✅' : '❌'); 
+// Vérifier les conteneurs DOM 
+console.log('🖼️ Vérification des conteneurs DOM:'); const containers = [ 'calendar-grid', 'categoryChart', 'budgetChart', 'modernBarsContainer', 'temporal3DChart', 'enhanced-dashboard' ]; containers.forEach(id => { const element = document.getElementById(id); console.log(` ${id}:`, element ? '✅' : '❌'); }); return { missingClasses, hasCalendar: !!window.calendar, containers: containers.map(id => ({ id, exists: !!document.getElementById(id) })) }; }; 
+// Fonction de réparation automatique 
+window.initializeBudgetApp = function() { console.log('🚀 Initialisation de l\'application Budget...'); 
+// Attendre que le DOM soit prêt 
+if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', window.initializeBudgetApp); return; } try { 
+// Vérifier que toutes les classes sont disponibles 
+	const requiredClasses = [ 'BudgetCalendar', 'TransactionManager', 'ChartsManager' ]; const missingClasses = requiredClasses.filter(className => typeof window[className] === 'undefined' ); if (missingClasses.length > 0) { console.warn('⚠️ Classes manquantes:', missingClasses); 
+	// Réessayer après un délai 
+	setTimeout(window.initializeBudgetApp, 500); return; } 
+	// Créer l'instance principale 
+	window.calendar = new BudgetCalendar(); console.log('✅ Application Budget initialisée avec succès'); } catch (error) { console.error('❌ Erreur lors de l\'initialisation:', error); 
+	// Diagnostic automatique en cas d'erreur 
+	setTimeout(() => { const diagnostic = window.debugBudgetApp(); console.log('📊 Diagnostic:', diagnostic); }, 100); } }; 
+	// Démarrer l'initialisation 
+	window.initializeBudgetApp(); 
+	// Auto-diagnostic après chargement 
+	window.addEventListener('load', function() { setTimeout(() => { console.log('🚀 Auto-diagnostic de l\'application Budget...'); window.debugBudgetApp(); }, 1000); }); 
+</script>
 </body>
 </html>
