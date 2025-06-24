@@ -86,6 +86,7 @@ class BudgetCalendar {
         this.applyTheme(this.currentTheme);
         this.setDefaultDate();
         this.loadFixedExpensesValues();
+        this.updateRadioStyles(); // Initialiser l'apparence des radio buttons
         this.updateCalendar();
         this.updateTransactionsList();
         
@@ -145,7 +146,11 @@ class BudgetCalendar {
             clearBtn: document.getElementById('clear-data'),
             
             // Theme elements
-            themeSelect: document.getElementById('theme-select')
+            themeSelect: document.getElementById('theme-select'),
+            
+            // Radio label elements
+            expenseLabel: document.getElementById('expense-label'),
+            incomeLabel: document.getElementById('income-label')
         };
     }
 
@@ -205,12 +210,56 @@ class BudgetCalendar {
         
         // Theme listener
         this.elements.themeSelect.addEventListener('change', (e) => this.changeTheme(e.target.value));
+        
+        // Category change listener for auto type selection
+        this.elements.category.addEventListener('change', () => this.updateTypeBasedOnCategory());
+        
+        // Radio button listeners for visual updates
+        this.elements.typeExpense.addEventListener('change', () => this.updateRadioStyles());
+        this.elements.typeIncome.addEventListener('change', () => this.updateRadioStyles());
     }
 
     // ===== UTILITY METHODS =====
     setDefaultDate() {
         const today = new Date();
         this.elements.date.valueAsDate = today;
+    }
+
+    updateTypeBasedOnCategory() {
+        const category = this.elements.category.value;
+        
+        // Catégories qui sont généralement des revenus
+        const incomeCategories = ['Salaire'];
+        
+        if (incomeCategories.includes(category)) {
+            this.elements.typeIncome.checked = true;
+            this.elements.typeExpense.checked = false;
+        } else if (category) {
+            // Toutes les autres catégories sont des dépenses
+            this.elements.typeExpense.checked = true;
+            this.elements.typeIncome.checked = false;
+        }
+        
+        this.updateRadioStyles();
+    }
+
+    updateRadioStyles() {
+        // Vérifier que les éléments existent
+        if (!this.elements.expenseLabel || !this.elements.incomeLabel) {
+            console.warn('Radio label elements not found');
+            return;
+        }
+        
+        // Retirer les classes précédentes
+        this.elements.expenseLabel.classList.remove('checked');
+        this.elements.incomeLabel.classList.remove('checked');
+        
+        // Ajouter la classe checked au bon label
+        if (this.elements.typeExpense.checked) {
+            this.elements.expenseLabel.classList.add('checked');
+        } else if (this.elements.typeIncome.checked) {
+            this.elements.incomeLabel.classList.add('checked');
+        }
     }
 
     isSameDate(date1, date2) {
@@ -252,6 +301,109 @@ class BudgetCalendar {
     updateFixedExpensesTotal() {
         const total = Object.values(this.fixedExpenses).reduce((sum, val) => sum + val, 0);
         this.elements.fixedTotal.textContent = `${total.toFixed(2)} €`;
+    }
+
+    // ===== DATA MANAGEMENT METHODS =====
+    exportData() {
+        const data = {
+            transactions: this.transactions,
+            fixedExpenses: this.fixedExpenses,
+            theme: this.currentTheme,
+            exportDate: new Date().toISOString()
+        };
+        
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `budget_export_${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+    }
+    
+    importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                if (!data.transactions || !Array.isArray(data.transactions)) {
+                    alert('Fichier invalide: données de transactions manquantes');
+                    return;
+                }
+                
+                if (confirm('Cela remplacera toutes les données actuelles. Continuer ?')) {
+                    this.transactions = data.transactions || [];
+                    this.fixedExpenses = data.fixedExpenses || {
+                        loyer: 0,
+                        edf: 0,
+                        internet: 0,
+                        credit: 0,
+                        autres: 0
+                    };
+                    
+                    if (data.theme) {
+                        this.applyTheme(data.theme);
+                    }
+                    
+                    // Save to localStorage
+                    saveTransactions(this.transactions);
+                    saveFixedExpenses(this.fixedExpenses);
+                    
+                    // Update UI
+                    this.loadFixedExpensesValues();
+                    this.updateCalendar();
+                    this.updateTransactionsList();
+                    if (this.chartsInitialized) {
+                        this.updateCharts();
+                    }
+                    
+                    alert('Données importées avec succès !');
+                }
+            } catch (error) {
+                console.error('Error importing data:', error);
+                alert('Erreur lors de l\'import: ' + error.message);
+            }
+        };
+        
+        reader.readAsText(file);
+        event.target.value = ''; // Reset input
+    }
+    
+    clearAllData() {
+        if (confirm('⚠️ Cette action supprimera TOUTES les données. Êtes-vous sûr ?')) {
+            if (confirm('⚠️ Dernière confirmation: toutes les transactions seront perdues !')) {
+                // Clear data
+                this.transactions = [];
+                this.fixedExpenses = {
+                    loyer: 0,
+                    edf: 0,
+                    internet: 0,
+                    credit: 0,
+                    autres: 0
+                };
+                
+                // Save to localStorage
+                saveTransactions(this.transactions);
+                saveFixedExpenses(this.fixedExpenses);
+                
+                // Reset theme
+                this.applyTheme('light');
+                
+                // Update UI
+                this.loadFixedExpensesValues();
+                this.updateCalendar();
+                this.updateTransactionsList();
+                if (this.chartsInitialized) {
+                    this.updateCharts();
+                }
+                
+                alert('Toutes les données ont été effacées.');
+            }
+        }
     }
 
     // ===== THEME METHODS =====
@@ -336,6 +488,7 @@ class BudgetCalendar {
         this.elements.form.reset();
         this.elements.typeExpense.checked = true; // Dépense par défaut
         this.setDefaultDate();
+        this.updateRadioStyles(); // Mettre à jour l'apparence
     }
 
     deleteTransaction(id) {
@@ -898,30 +1051,8 @@ class BudgetCalendar {
         // Création d'un dégradé arc-en-ciel pour les barres
         const rainbowColors = this.generateRainbowColors(categories.length);
 
-        const data = [{
-            x: categories,
-            y: amounts,
-            z: categories.map(() => 0), // Position Z pour l'effet 3D
-            type: 'bar3d',
-            marker: {
-                color: rainbowColors,
-                opacity: 0.9,
-                line: {
-                    color: 'rgba(0,0,0,0.2)',
-                    width: 1
-                },
-                // Effet de dégradé sur chaque barre
-                colorscale: 'Viridis'
-            },
-            text: amounts.map(amount => `${amount.toFixed(2)}€`),
-            textposition: 'auto',
-            textfont: {
-                color: 'white',
-                size: 11,
-                family: 'Segoe UI, sans-serif',
-                weight: 'bold'
-            }
-        }];
+        // Utiliser scatter3d avec des barres personnalisées pour un meilleur effet 3D
+        const enhancedData = this.create3DBarData(categories, amounts, rainbowColors);
 
         const layout = {
             title: {
@@ -974,9 +1105,6 @@ class BudgetCalendar {
             displaylogo: false,
             responsive: true
         };
-
-        // Utiliser scatter3d avec des barres personnalisées pour un meilleur effet 3D
-        const enhancedData = this.create3DBarData(categories, amounts, rainbowColors);
 
         Plotly.newPlot(container, enhancedData, layout, config);
     }
@@ -1220,8 +1348,11 @@ let calendar;
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    calendar = new BudgetCalendar();
+    try {
+        calendar = new BudgetCalendar();
+        // Expose calendar globally for button callbacks
+        window.calendar = calendar;
+    } catch (error) {
+        console.error('Error initializing BudgetCalendar:', error);
+    }
 });
-
-// Expose calendar globally for button callbacks
-window.calendar = calendar;
