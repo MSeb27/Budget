@@ -61,15 +61,15 @@ class StorageManager {
         }
     }
 
-    static saveTheme(theme) {
-        try {
-            localStorage.setItem(THEME_KEY, theme);
-            return true;
-        } catch (error) {
-            console.error("Erreur lors de la sauvegarde du thème:", error);
-            return false;
-        }
+	static saveTheme(theme) {
+		try {
+			localStorage.setItem(THEME_KEY, theme);
+			return true;
+		} catch (error) {
+        console.error("Erreur lors de la sauvegarde du thème:", error);
+        return false;
     }
+}
 
     static exportData(transactions, fixedExpenses, theme) {
         const data = {
@@ -133,4 +133,6 @@ class StorageManager {
             return false;
         }
     }
+
 }
+window.StorageManager = StorageManager;

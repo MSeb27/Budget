@@ -466,6 +466,7 @@
 <!-- 1. Utilitaires et helpers d'abord --> 
 <script src="js/utils.js"></script> 
 <!-- 2. Classes de base --> 
+<script src="js/storage.js"></script> 
 <script src="js/transactions.js"></script> 
 <script src="js/calendar.js"></script> 
 <script src="js/charts.js"></script> 
@@ -475,33 +476,5 @@
 <script src="js/themes.js"></script> 
 <!-- 3. Script principal SANS type="module" --> 
 <script src="js/app.js"></script>
-<!-- 4. Script de débogage --> 
-<script> // ===== SCRIPT DE DÉBOGAGE  ===== 
-window.debugBudgetApp = function() { console.log('🔍 === DIAGNOSTIC COMPLET DE L\'APPLICATION ==='); 
-// Vérifier les dépendances 
-console.log('📚 Vérification des dépendances:'); console.log(' Chart.js:', typeof Chart !== 'undefined' ? '✅' : '❌'); console.log(' Plotly.js:', typeof Plotly !== 'undefined' ? '✅' : '❌'); 
-// Vérifier les classes 
-console.log('🏗️ Vérification des classes:'); const requiredClasses = [ 'TransactionManager', 'BudgetPredictionsAI', 'ChartsManager', 'EnhancedDashboard', 'AdvancedSearchManager', 'ThemeManager', 'BudgetCalendar' ]; const missingClasses = []; requiredClasses.forEach(className => { const exists = typeof window[className] !== 'undefined'; console.log(` ${className}:`, exists ? '✅' : '❌'); if (!exists) missingClasses.push(className); }); 
-// Vérifier l'instance principale 
-console.log('🎯 Vérification de l\'instance principale:'); console.log(' window.calendar:', window.calendar ? '✅' : '❌'); 
-// Vérifier les conteneurs DOM 
-console.log('🖼️ Vérification des conteneurs DOM:'); const containers = [ 'calendar-grid', 'categoryChart', 'budgetChart', 'modernBarsContainer', 'temporal3DChart', 'enhanced-dashboard' ]; containers.forEach(id => { const element = document.getElementById(id); console.log(` ${id}:`, element ? '✅' : '❌'); }); return { missingClasses, hasCalendar: !!window.calendar, containers: containers.map(id => ({ id, exists: !!document.getElementById(id) })) }; }; 
-// Fonction de réparation automatique 
-window.initializeBudgetApp = function() { console.log('🚀 Initialisation de l\'application Budget...'); 
-// Attendre que le DOM soit prêt 
-if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', window.initializeBudgetApp); return; } try { 
-// Vérifier que toutes les classes sont disponibles 
-	const requiredClasses = [ 'BudgetCalendar', 'TransactionManager', 'ChartsManager' ]; const missingClasses = requiredClasses.filter(className => typeof window[className] === 'undefined' ); if (missingClasses.length > 0) { console.warn('⚠️ Classes manquantes:', missingClasses); 
-	// Réessayer après un délai 
-	setTimeout(window.initializeBudgetApp, 500); return; } 
-	// Créer l'instance principale 
-	window.calendar = new BudgetCalendar(); console.log('✅ Application Budget initialisée avec succès'); } catch (error) { console.error('❌ Erreur lors de l\'initialisation:', error); 
-	// Diagnostic automatique en cas d'erreur 
-	setTimeout(() => { const diagnostic = window.debugBudgetApp(); console.log('📊 Diagnostic:', diagnostic); }, 100); } }; 
-	// Démarrer l'initialisation 
-	window.initializeBudgetApp(); 
-	// Auto-diagnostic après chargement 
-	window.addEventListener('load', function() { setTimeout(() => { console.log('🚀 Auto-diagnostic de l\'application Budget...'); window.debugBudgetApp(); }, 1000); }); 
-</script>
 </body>
 </html>

@@ -13,84 +13,14 @@ if (typeof ThemeManager !== 'undefined')
 	window.ThemeManager = ThemeManager; 
 console.log('📦 Classes exposées dans le scope global');
 
-// ===== STORAGE FUNCTIONS =====
-const STORAGE_KEY = 'budget-calendar-data';
-const FIXED_EXPENSES_KEY = 'budget-fixed-expenses';
-const THEME_KEY = 'budget-theme';
-
-function loadTransactions() {
-    try {
-        const data = localStorage.getItem(STORAGE_KEY);
-        return data ? JSON.parse(data) : [];
-    } catch (error) {
-        console.error("Erreur lors du chargement:", error);
-        return [];
-    }
-}
-
-function saveTransactions(transactions) {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-        return true;
-    } catch (error) {
-        console.error("Erreur lors de la sauvegarde:", error);
-        return false;
-    }
-}
-
-function loadFixedExpenses() {
-    try {
-        const data = localStorage.getItem(FIXED_EXPENSES_KEY);
-        return data ? JSON.parse(data) : {
-            loyer: 0,
-            edf: 0,
-            internet: 0,
-            credit: 0,
-            autres: 0
-        };
-    } catch (error) {
-        console.error("Erreur lors du chargement des dépenses fixes:", error);
-        return { loyer: 0, edf: 0, internet: 0, credit: 0, autres: 0 };
-    }
-}
-
-function saveFixedExpenses(fixedExpenses) {
-    try {
-        localStorage.setItem(FIXED_EXPENSES_KEY, JSON.stringify(fixedExpenses));
-        return true;
-    } catch (error) {
-        console.error("Erreur lors de la sauvegarde des dépenses fixes:", error);
-        return false;
-    }
-}
-
-function loadTheme() {
-    try {
-        return localStorage.getItem(THEME_KEY) || 'light';
-    } catch (error) {
-        console.error("Erreur lors du chargement du thème:", error);
-        return 'light';
-    }
-}
-
-function saveTheme(theme) {
-    try {
-        localStorage.setItem(THEME_KEY, theme);
-        return true;
-    } catch (error) {
-        console.error("Erreur lors de la sauvegarde du thème:", error);
-        return false;
-    }
-}
-
 // ===== MAIN APPLICATION CLASS =====
 class BudgetCalendar {
-    constructor() {
-        this.currentDate = new Date();
-        this.selectedDate = null;
-        this.transactions = loadTransactions();
-        this.fixedExpenses = loadFixedExpenses();
-        this.currentTheme = loadTheme();
+        constructor() {
+		this.currentDate = new Date();
+		this.selectedDate = null;
+		this.transactions = StorageManager.loadTransactions(); // Utiliser StorageManager
+		this.fixedExpenses = StorageManager.loadFixedExpenses(); // Utiliser StorageManager
+		this.currentTheme = StorageManager.loadTheme(); // Utiliser StorageManager
         this.filteredTransactions = [];
         this.charts = {};
         this.chartsInitialized = false;
@@ -121,7 +51,7 @@ class BudgetCalendar {
         setTimeout(() => {
             this.initializeCharts();
         }, 500);
-    }
+	}
 
 
 	// Initalize 
@@ -472,7 +402,7 @@ setupEventListeners() {
 			autres: parseFloat(this.elements.fixedAutres.value) || 0
 		};
     
-		saveFixedExpenses(this.fixedExpenses);
+		StorageManager.saveFixedExpenses(this.fixedExpenses);
 		this.updateFixedExpensesTotal();
 	}
 
@@ -528,8 +458,8 @@ setupEventListeners() {
                     }
                     
                     // Save to localStorage
-                    saveTransactions(this.transactions);
-                    saveFixedExpenses(this.fixedExpenses);
+                    StorageManager.saveTransactions(this.transactions);
+                    StorageManager.saveFixedExpenses(this.fixedExpenses);
                     
                     // Update UI
                     this.loadFixedExpensesValues();
@@ -565,8 +495,8 @@ setupEventListeners() {
                 };
                 
                 // Save to localStorage
-                saveTransactions(this.transactions);
-                saveFixedExpenses(this.fixedExpenses);
+                StorageManager.saveTransactions(this.transactions);
+                StorageManager.saveFixedExpenses(this.fixedExpenses);
                 
                 // Reset theme
                 this.applyTheme('light');
@@ -1006,7 +936,7 @@ updateThemePreview() {
         } else {
             // Fallback
             this.transactions.push(transaction);
-            if (!saveTransactions(this.transactions)) {
+            if (!StorageManager.saveTransactions(this.transactions)) {
                 this.elements.errorMessage.textContent = "Erreur lors de la sauvegarde";
                 return;
             }
@@ -1042,17 +972,29 @@ updateThemePreview() {
 		this.updateRadioStyles(); // Mettre à jour l'apparence
 	}
 	
-    deleteTransaction(id) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) {
-            this.transactions = this.transactions.filter(t => t.id !== id);
-            saveTransactions(this.transactions);
-            this.updateCalendar();
-            this.updateTransactionsList();
-            if (this.chartsInitialized) {
-                this.updateCharts();
+	deleteTransaction(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) {
+        try {
+            // Utiliser le transaction manager si disponible
+            if (this.transactionManager) {
+                this.transactionManager.deleteTransaction(id);
+                this.transactions = this.transactionManager.getAllTransactions();
+            } else {
+                // Fallback vers l'ancienne méthode
+                this.transactions = this.transactions.filter(t => t.id !== id);
+                StorageManager.saveTransactions(this.transactions);
             }
+            
+            // Mettre à jour tous les composants
+            this.updateAllComponents();
+            
+            console.log('✅ Transaction supprimée avec succès');
+        } catch (error) {
+            console.error('❌ Erreur lors de la suppression:', error);
+            alert('Erreur lors de la suppression de la transaction');
         }
     }
+	}
 
     // ===== CALENDAR METHODS =====
     previousMonth() {
@@ -1296,7 +1238,7 @@ updateThemePreview() {
                 <td>${transaction.amount.toFixed(2)} €</td>
                 <td>${transaction.type === 'income' ? '💰 Revenu' : '💸 Dépense'}</td>
                 <td>
-                    <button class="btn-danger" onclick="calendar.deleteTransaction(${transaction.id})">
+                    <button class="btn-danger" onclick="window.calendar.deleteTransaction('${transaction.id}')">
                         🗑️ Supprimer
                     </button>
                 </td>
@@ -1912,6 +1854,8 @@ updateThemePreview() {
 }
 
 
+window.BudgetCalendar = BudgetCalendar;
+
 // ===== FONCTIONS GLOBALES POUR LES PRÉDICTIONS =====
 // Ces fonctions sont appelées depuis le HTML des boutons dans l'onglet Prédictions
 
@@ -2215,3 +2159,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
 });
+

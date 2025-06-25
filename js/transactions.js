@@ -15,9 +15,10 @@ class TransactionManager {
 
     // ===== INITIALIZATION =====
     init() {
-        this.transactions = StorageManager.loadTransactions();
-        this.fixedExpenses = StorageManager.loadFixedExpenses();
-    }
+    this.transactions = StorageManager.loadTransactions(); 
+	this.fixedExpenses = StorageManager.loadFixedExpenses(); 
+	
+	}	
 
     setCallbacks(onTransactionChange = null, onFixedExpenseChange = null) {
         this.onTransactionChange = onTransactionChange;
@@ -233,7 +234,7 @@ class TransactionManager {
 
     // ===== PRIVATE METHODS =====
     saveTransactions() {
-        StorageManager.saveTransactions(this.transactions);
+        StorageManager.saveTransactions(this.transactions); 
     }
 
     triggerTransactionChange() {

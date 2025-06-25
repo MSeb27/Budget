@@ -1,0 +1,33 @@
+Budget-App/
+│
+├── index.html
+├── Launch.bat
+├── lancer_serveur_gui.py
+├── README.md / read.me
+├── LICENSE* (fr, es, etc.)
+│
+├── css/
+│   ├── main.css              ← Style global
+│   ├── components.css        ← Boutons, onglets, formulaire...
+│   ├── theme-components      ← Style de composants de themes (notification aperçu,...)
+│   ├── charts.css            ← Graphiques
+│   └── themes.css            ← thèmes 
+│   └── enhanced-features.css ← Dashboard
+│
+├── js/
+│   ├── app.js               ← Point d’entrée principal
+│   ├── calendar.js          ← Affichage et logique calendrier
+│   ├── charts.js            ← Charts
+│   └── enhanced-dashboard.js← Dashboard
+│   ├── predicitons.js       ← Prédictions AI
+│   ├── search-filters.js    ← Recherche avancée
+│   ├── transactions.js      ← Ajout / suppression / tri
+│   ├── storage.js           ← Gestion du localStorage
+│   ├── utils.js             ← Fonctions utilitaires
+│   └── themes.js            ← Thèmes
+
+│
+└── .git/                    ← Suivi Git (branches locales + TortoiseGit)
+
+
+
