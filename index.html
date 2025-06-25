@@ -416,54 +416,56 @@
                         </div>
                     </div>
                     
-                    <div class="settings-card">
-                        <h3>📌 Dépenses Contraintes</h3>
-                        <div class="fixed-expenses-grid">
-    <!-- Ligne 1 -->
-    <div class="fixed-expense-item compact">
-        <label>🏠 Loyer</label>
-        <input type="number" id="fixed-loyer" placeholder="0.00" step="0.01" />
-    </div>
-    <div class="fixed-expense-item compact">
-        <label>⚡ EDF-GDF</label>
-        <input type="number" id="fixed-edf" placeholder="0.00" step="0.01" />
-    </div>
-    
-    <!-- Ligne 2 -->
-    <div class="fixed-expense-item compact">
-        <label>🌐 Internet</label>
-        <input type="number" id="fixed-internet" placeholder="0.00" step="0.01" />
-    </div>
-    <div class="fixed-expense-item compact">
-        <label>🏦 Crédit</label>
-        <input type="number" id="fixed-credit" placeholder="0.00" step="0.01" />
-    </div>
-    
-    <!-- Ligne 3 - NOUVELLES ASSURANCES -->
-    <div class="fixed-expense-item compact">
-        <label>🏠🛡️ Assurance maison</label>
-        <input type="number" id="fixed-assurance-maison" placeholder="0.00" step="0.01" />
-    </div>
-    <div class="fixed-expense-item compact">
-        <label>🚗🛡️ Assurance voiture</label>
-        <input type="number" id="fixed-assurance-voiture" placeholder="0.00" step="0.01" />
-    </div>
-    
-    <!-- Ligne 4 -->
-    <div class="fixed-expense-item compact">
-        <label>📦 Autres</label>
-        <input type="number" id="fixed-autres" placeholder="0.00" step="0.01" />
-    </div>
-    <div class="fixed-expense-item compact total">
-        <label>💰 Total</label>
-        <input type="number" id="fixed-total" readonly />
-    </div>
-</div>
-                        <div class="fixed-expenses-total">
-                            <strong>Total: <span id="fixed-total">0.00 €</span></strong>
-                        </div>
-                    </div>
                     
+					<div class="settings-card">
+						<h3>📌 Dépenses Contraintes</h3>
+						<div class="fixed-expenses-grid">
+							<!-- Ligne 1 -->
+							<div class="fixed-expense-item compact">
+								<label>🏠 Loyer</label>
+								<input type="number" id="fixed-loyer" placeholder="0.00" step="0.01" />
+							</div>
+							<div class="fixed-expense-item compact">
+								<label>⚡ EDF-GDF</label>
+								<input type="number" id="fixed-edf" placeholder="0.00" step="0.01" />
+							</div>
+							
+							<!-- Ligne 2 -->
+							<div class="fixed-expense-item compact">
+								<label>🌐 Internet</label>
+								<input type="number" id="fixed-internet" placeholder="0.00" step="0.01" />
+							</div>
+							<div class="fixed-expense-item compact">
+								<label>🏦 Crédit</label>
+								<input type="number" id="fixed-credit" placeholder="0.00" step="0.01" />
+							</div>
+							
+							<!-- Ligne 3 - ASSURANCES -->
+							<div class="fixed-expense-item compact">
+								<label>🏠🛡️ Assurance maison</label>
+								<input type="number" id="fixed-assurance-maison" placeholder="0.00" step="0.01" />
+							</div>
+							<div class="fixed-expense-item compact">
+								<label>🚗🛡️ Assurance voiture</label>
+								<input type="number" id="fixed-assurance-voiture" placeholder="0.00" step="0.01" />
+							</div>
+							
+							<!-- Ligne 4 -->
+							<div class="fixed-expense-item compact">
+								<label>🏛️ Impôt</label>
+								<input type="number" id="fixed-impot" placeholder="0.00" step="0.01" />
+							</div>
+							<div class="fixed-expense-item compact">
+								<label>📦 Autres</label>
+								<input type="number" id="fixed-autres" placeholder="0.00" step="0.01" />
+							</div>
+						</div>
+						<!-- AFFICHAGE DU TOTAL UNIQUEMENT ICI - ID UNIQUE -->
+						<div class="fixed-expenses-total">
+							<strong>💰 Total: <span id="fixed-total-display">0.00 €</span></strong>
+						</div>
+					</div>
+				
                     <div class="settings-card">
                         <h3>💾 Données</h3>
                         <div class="data-actions">
@@ -479,7 +481,7 @@
                             </button>
                         </div>
                     </div>
-                </div>
+
             </div>
         </div>
     </div>

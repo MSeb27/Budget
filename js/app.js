@@ -327,12 +327,12 @@ setupEventListeners() {
 			'Assurance maison': 'assuranceMaison',
 			'Assurance voiture': 'assuranceVoiture'
 		};
-    
+	
 		const fixedExpenseKey = constrainedExpenseMapping[category];
-    
+	
 		if (fixedExpenseKey && this.fixedExpenses[fixedExpenseKey] > 0) {
 			this.elements.amount.value = this.fixedExpenses[fixedExpenseKey].toFixed(2);
-        
+		
 			// Indication visuelle
 			this.elements.amount.style.background = '#e8f5e8';
 			setTimeout(() => {
@@ -375,52 +375,58 @@ setupEventListeners() {
 
     // ===== FIXED EXPENSES METHODS =====
 	loadFixedExpensesValues() {
-        // Vérifier que les éléments existent avant de les modifier
-        if (this.elements.fixedLoyer) this.elements.fixedLoyer.value = this.fixedExpenses.loyer || '';
-        if (this.elements.fixedEdf) this.elements.fixedEdf.value = this.fixedExpenses.edf || '';
-        if (this.elements.fixedInternet) this.elements.fixedInternet.value = this.fixedExpenses.internet || '';
-        if (this.elements.fixedCredit) this.elements.fixedCredit.value = this.fixedExpenses.credit || '';
-        if (this.elements.fixedAutres) this.elements.fixedAutres.value = this.fixedExpenses.autres || '';
-        
-        this.updateFixedExpensesTotal();
-    }
+		// Vérifier que les éléments existent avant de les modifier
+		if (this.elements.fixedLoyer) this.elements.fixedLoyer.value = this.fixedExpenses.loyer || '';
+		if (this.elements.fixedEdf) this.elements.fixedEdf.value = this.fixedExpenses.edf || '';
+		if (this.elements.fixedInternet) this.elements.fixedInternet.value = this.fixedExpenses.internet || '';
+		if (this.elements.fixedCredit) this.elements.fixedCredit.value = this.fixedExpenses.credit || '';
+		if (this.elements.fixedImpot) this.elements.fixedImpot.value = this.fixedExpenses.impot || '';
+		if (this.elements.fixedAutres) this.elements.fixedAutres.value = this.fixedExpenses.autres || '';
+		if (this.elements.fixedAssuranceMaison) this.elements.fixedAssuranceMaison.value = this.fixedExpenses.assuranceMaison || '';
+		if (this.elements.fixedAssuranceVoiture) this.elements.fixedAssuranceVoiture.value = this.fixedExpenses.assuranceVoiture || '';
+		
+		// Calculer et afficher le total
+		this.updateFixedExpensesTotal();
+	}
 
-updateFixedExpenses() {
-    const loyer = parseFloat(this.elements.fixedLoyer?.value) || 0;
-    const edf = parseFloat(this.elements.fixedEdf?.value) || 0;
-    const internet = parseFloat(this.elements.fixedInternet?.value) || 0;
-    const credit = parseFloat(this.elements.fixedCredit?.value) || 0;
-    const autres = parseFloat(this.elements.fixedAutres?.value) || 0;
-    
-    // AJOUTER CES DEUX LIGNES
-    const assuranceMaison = parseFloat(this.elements.fixedAssuranceMaison?.value) || 0;
-    const assuranceVoiture = parseFloat(this.elements.fixedAssuranceVoiture?.value) || 0;
+	updateFixedExpenses() {
+		const loyer = parseFloat(this.elements.fixedLoyer?.value) || 0;
+		const edf = parseFloat(this.elements.fixedEdf?.value) || 0;
+		const internet = parseFloat(this.elements.fixedInternet?.value) || 0;
+		const credit = parseFloat(this.elements.fixedCredit?.value) || 0;
+		const impot = parseFloat(this.elements.fixedImpot?.value) || 0;
+		const autres = parseFloat(this.elements.fixedAutres?.value) || 0;
+		const assuranceMaison = parseFloat(this.elements.fixedAssuranceMaison?.value) || 0;
+		const assuranceVoiture = parseFloat(this.elements.fixedAssuranceVoiture?.value) || 0;
+	
+		// Mise à jour de l'objet fixedExpenses SANS LE TOTAL
+		this.fixedExpenses = {
+			loyer,
+			edf,
+			internet,
+			credit,
+			impot,
+			autres,
+			assuranceMaison,
+			assuranceVoiture
+		};
+	
+		// Sauvegarder les données
+		StorageManager.saveFixedExpenses(this.fixedExpenses);
+		
+		// Mettre à jour l'affichage du total
+		this.updateFixedExpensesTotal();
+	}
 
-    // MODIFIER LE CALCUL DU TOTAL
-    const total = loyer + edf + internet + credit + autres + assuranceMaison + assuranceVoiture;
-
-    if (this.elements.fixedTotal) {
-        this.elements.fixedTotal.value = total.toFixed(2);
-    }
-
-    // MODIFIER L'OBJET fixedExpenses
-    this.fixedExpenses = {
-        loyer,
-        edf,
-        internet,
-        credit,
-        autres,
-        assuranceMaison,     
-        assuranceVoiture,    
-        total
-    };
-
-    StorageManager.saveFixedExpenses(this.fixedExpenses);
-}
-    updateFixedExpensesTotal() {
-        const total = Object.values(this.fixedExpenses).reduce((sum, val) => sum + val, 0);
-        this.elements.fixedTotal.textContent = `${total.toFixed(2)} €`;
-    }
+	updateFixedExpensesTotal() {
+		// Calculer le total à partir des valeurs de l'objet fixedExpenses
+		const total = Object.values(this.fixedExpenses).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+		
+		// Afficher le total dans l'élément d'affichage
+		if (this.elements.fixedTotalDisplay) {
+			this.elements.fixedTotalDisplay.textContent = `${total.toFixed(2)} €`;
+		}
+	}
 
     // ===== DATA MANAGEMENT METHODS =====
     exportData() {
@@ -877,43 +883,43 @@ updateThemePreview() {
 
     // ===== initializeElements =====
 	initializeElements() {
-        this.elements = {};
-        
-        const elementIds = [
-            'transaction-form', 'label', 'amount', 'category', 'date',
-            'type-expense', 'type-income', 'error-message',
-            'prev-month', 'next-month', 'month-year', 'calendar-grid',
-            'month-income', 'month-expenses', 'month-balance', 'total-balance',
-            'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
-            'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-autres', 'fixed-total',
-			'fixed-assurance-maison', 'fixed-assurance-voiture',
-            'export-data', 'import-data', 'import-file', 'clear-data', 'theme-select',
-            'expense-label', 'income-label'
-        ];
-
-        elementIds.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                // Convertir les tirets en camelCase pour les propriétés
-                const propName = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-                this.elements[propName] = element;
-            } else {
-                console.warn(`⚠️ Élément non trouvé: ${id}`);
-            }
-        });
-
-        // Éléments spéciaux
-        this.elements.tabBtns = document.querySelectorAll('.tab-btn') || [];
-        this.elements.tabContents = document.querySelectorAll('.tab-content') || [];
-        
-        // Alias pour compatibilité avec le code existant
-        this.elements.form = this.elements.transactionForm;
-        this.elements.exportBtn = this.elements.exportData;
-        this.elements.importBtn = this.elements.importData;
-        this.elements.clearBtn = this.elements.clearData;
-        
-        console.log('✅ Éléments DOM initialisés:', Object.keys(this.elements).length, 'éléments trouvés');
-    }
+		this.elements = {};
+		
+		const elementIds = [
+			'transaction-form', 'label', 'amount', 'category', 'date',
+			'type-expense', 'type-income', 'error-message',
+			'prev-month', 'next-month', 'month-year', 'calendar-grid',
+			'month-income', 'month-expenses', 'month-balance', 'total-balance',
+			'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
+			'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-impot', 'fixed-autres',
+			'fixed-assurance-maison', 'fixed-assurance-voiture', 'fixed-total-display',
+			'export-data', 'import-data', 'import-file', 'clear-data', 'theme-select',
+			'expense-label', 'income-label'
+		];
+	
+		elementIds.forEach(id => {
+			const element = document.getElementById(id);
+			if (element) {
+				// Convertir les tirets en camelCase pour les propriétés
+				const propName = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+				this.elements[propName] = element;
+			} else {
+				console.warn(`⚠️ Élément non trouvé: ${id}`);
+			}
+		});
+	
+		// Éléments spéciaux
+		this.elements.tabBtns = document.querySelectorAll('.tab-btn') || [];
+		this.elements.tabContents = document.querySelectorAll('.tab-content') || [];
+		
+		// Alias pour compatibilité avec le code existant
+		this.elements.form = this.elements.transactionForm;
+		this.elements.exportBtn = this.elements.exportData;
+		this.elements.importBtn = this.elements.importData;
+		this.elements.clearBtn = this.elements.clearData;
+		
+		console.log('✅ Éléments DOM initialisés:', Object.keys(this.elements).length, 'éléments trouvés');
+	}
 
 
     // ===== TRANSACTION METHODS =====
@@ -1913,6 +1919,28 @@ class AnalyticsNavigator {
                 this.updateTitle();
             }
         });
+		
+		// Event listeners pour les champs de dépenses contraintes
+		const fixedExpenseFields = [
+			'fixedLoyer', 'fixedEdf', 'fixedInternet', 'fixedCredit', 
+			'fixedImpot', 'fixedAutres', 'fixedAssuranceMaison', 'fixedAssuranceVoiture'
+		];
+		
+		fixedExpenseFields.forEach(fieldName => {
+			if (this.elements[fieldName]) {
+				// Event listener pour la saisie en temps réel
+				this.elements[fieldName].addEventListener('input', () => {
+					this.updateFixedExpenses();
+				});
+				
+				// Event listener pour la validation quand l'utilisateur quitte le champ
+				this.elements[fieldName].addEventListener('blur', () => {
+					this.updateFixedExpenses();
+				});
+			}
+		});
+
+		console.log('✅ Event listeners pour les dépenses contraintes configurés');
     }
     
     previousMonth() {

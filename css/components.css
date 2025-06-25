@@ -865,109 +865,89 @@ button:disabled {
     text-align: center;
 }
 
+/* PREMIÈRE LIGNE - Couleurs principales */
 .preview-content {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 8px;
     margin-bottom: 12px;
+    height: 32px; /* Hauteur uniforme */
 }
 
-/* Couleurs principales (ligne du haut) */
-.preview-primary {
-    background: var(--primary-color);
-    height: 32px;
+.preview-primary,
+.preview-secondary,
+.preview-accent,
+.preview-quaternary,
+.preview-quinary {
+    height: 32px; /* Hauteur explicite */
     border-radius: 6px;
     position: relative;
     transition: var(--transition);
     cursor: pointer;
+}
+
+.preview-primary {
+    background: var(--primary-color);
 }
 
 .preview-secondary {
     background: var(--success-color);
-    height: 32px;
-    border-radius: 6px;
-    position: relative;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
 .preview-accent {
     background: var(--accent-color);
-    height: 32px;
-    border-radius: 6px;
-    position: relative;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
-/* Couleurs additionnelles */
 .preview-quaternary {
     background: var(--quaternary-color);
-    height: 32px;
-    border-radius: 6px;
-    position: relative;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
 .preview-quinary {
     background: var(--quinary-color);
-    height: 32px;
-    border-radius: 6px;
-    position: relative;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
-/* Deuxième ligne de couleurs */
+/* DEUXIÈME LIGNE - Couleurs secondaires AVEC LA MÊME HAUTEUR */
 .preview-content-secondary {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 8px;
     margin-bottom: 12px;
+    height: 32px; /* Même hauteur que la première ligne */
+}
+
+.preview-senary,
+.preview-septenary,
+.preview-warning,
+.preview-danger,
+.preview-info {
+    height: 32px; /* Même hauteur que les couleurs principales */
+    border-radius: 6px; /* Même border-radius pour uniformiser */
+    transition: var(--transition);
+    cursor: pointer;
+    position: relative;
 }
 
 .preview-senary {
     background: var(--senary-color);
-    height: 24px;
-    border-radius: 4px;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
 .preview-septenary {
     background: var(--septenary-color);
-    height: 24px;
-    border-radius: 4px;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
 .preview-warning {
     background: var(--warning-color);
-    height: 24px;
-    border-radius: 4px;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
 .preview-danger {
     background: var(--danger-color);
-    height: 24px;
-    border-radius: 4px;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
 .preview-info {
     background: var(--info-color);
-    height: 24px;
-    border-radius: 4px;
-    transition: var(--transition);
-    cursor: pointer;
 }
 
-/* Effets de survol */
+/* Effets de survol uniformes pour toutes les tuiles */
 .preview-content > div:hover,
 .preview-content-secondary > div:hover {
     transform: scale(1.1);
@@ -1068,7 +1048,31 @@ button:disabled {
 @keyframes dots {
     0%, 20% { content: '.'; }
     40% { content: '..'; }
-    60%, 100% { content: '...'; }
+    60% { content: '...'; }
+    90%, 100% { content: ''; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== AUTRES STYLES GÉNÉRAUX ===== */
+.preview-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.preview-card {
+    background: var(--light-color);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    transition: var(--transition);
+    box-shadow: var(--shadow);
 }
 
 /* ===== RESPONSIVE COMPONENTS ===== */
