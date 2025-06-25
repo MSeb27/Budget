@@ -203,30 +203,6 @@ setupEventListeners() {
             } 
         }); 
         
-        // Navigation du calendrier avec vérification 
-        const prevMonth = document.getElementById('prev-month'); // Correction: prev-month au lieu de prevMonth
-        const nextMonth = document.getElementById('next-month'); // Correction: next-month au lieu de nextMonth
-        
-        if (prevMonth) { 
-            prevMonth.addEventListener('click', () => this.previousMonth()); 
-        } else { 
-            console.warn('⚠️ Bouton prev-month non trouvé'); 
-        } 
-
-        if (nextMonth) { 
-            nextMonth.addEventListener('click', () => this.nextMonth()); 
-        } else { 
-            console.warn('⚠️ Bouton next-month non trouvé'); 
-        } 
-        
-        // Formulaire de transaction avec vérification 
-        const form = document.getElementById('transaction-form'); 
-        if (form) { 
-            form.addEventListener('submit', (e) => this.handleSubmit(e)); // Correction: handleSubmit au lieu de handleTransactionSubmit
-        } else { 
-            console.warn('⚠️ Formulaire transaction-form non trouvé'); 
-        } 
-
         // Form submission (méthode alternative qui utilise this.elements)
         if (this.elements.form) {
             this.elements.form.addEventListener('submit', (e) => this.handleSubmit(e));
@@ -299,6 +275,10 @@ setupEventListeners() {
     updateTypeBasedOnCategory() {
 		const category = this.elements.category.value;
     
+		if (!category) {
+			return; // Ne rien faire si pas de catégorie (formulaire vide)
+		}
+
 		// Catégories qui sont généralement des revenus
 		const incomeCategories = ['Salaire', 'Prêt'];
     
@@ -958,6 +938,10 @@ updateThemePreview() {
 	resetForm() {
 		// Sauvegarder la date actuelle
 		const currentDate = this.elements.date.value;
+
+		// ⚠️ IMPORTANT: Désactiver temporairement les événements pour éviter les validations
+		const categoryChangeHandler = this.elements.category.onchange;
+		this.elements.category.onchange = null;
     
 		this.elements.form.reset();
 		this.elements.typeExpense.checked = true; // Dépense par défaut
@@ -969,7 +953,11 @@ updateThemePreview() {
 			this.setDefaultDate();
 		}
     
-		this.updateRadioStyles(); // Mettre à jour l'apparence
+		// ✅ Remettre les événements après un petit délai
+		setTimeout(() => {
+        this.elements.category.onchange = categoryChangeHandler;
+        this.updateRadioStyles(); // Mettre à jour l'apparence
+		}, 50);
 	}
 	
 	deleteTransaction(id) {
