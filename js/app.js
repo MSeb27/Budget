@@ -157,10 +157,15 @@ class BudgetCalendar {
             activeBtn.classList.add('active');
             activeContent.classList.add('active');
             
-            // Délais appropriés selon l'onglet
+            // Actions spécifiques selon l'onglet avec délais appropriés
             setTimeout(() => {
                 switch(tabName) {
                     case 'analytics':
+                        // Forcer l'affichage du titre du mois
+                        if (this.analyticsNavigator) {
+                            this.analyticsNavigator.forceUpdateTitle();
+                        }
+                        // Mettre à jour les graphiques
                         if (this.chartsInitialized && this.chartManager) {
                             this.chartManager.updateAllCharts();
                         } else if (!this.chartsInitialized) {
@@ -182,11 +187,21 @@ class BudgetCalendar {
                         
                     case 'search':
                         if (this.advancedSearch) {
-                            this.advancedSearch.applyFilters();
+                            this.advancedSearch.refresh();
                         }
                         break;
+                        
+                    case 'budget':
+                        // Rafraîchir le calendrier
+                        this.updateCalendar();
+                        this.updateTransactionsList();
+                        break;
+                        
+                    case 'settings':
+                        // Pas d'action spécifique nécessaire
+                        break;
                 }
-            }, 100);
+            }, 50); // Délai court pour s'assurer que l'onglet est activé
         }
     }
 	
@@ -1891,104 +1906,130 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ===== ANALYTICS NAVIGATOR =====
 class AnalyticsNavigator {
-    constructor(chartManager, transactionManager) {
-        this.chartManager = chartManager;
-        this.transactionManager = transactionManager;
-        this.currentAnalysisDate = new Date();
-        this.setupEventListeners();
-        this.updateTitle();
-    }
-    
-    setupEventListeners() {
-        // Navigation boutons
-        document.getElementById('prev-analysis-month')?.addEventListener('click', () => {
-            this.previousMonth();
-        });
-        
-        document.getElementById('next-analysis-month')?.addEventListener('click', () => {
-            this.nextMonth();
-        });
-        
-        // Sélecteur de mois
-        document.getElementById('apply-analysis-month')?.addEventListener('click', () => {
-            const monthInput = document.getElementById('analysis-month-select');
-            if (monthInput.value) {
-                const [year, month] = monthInput.value.split('-');
-                this.currentAnalysisDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-                this.updateChart();
+        constructor(chartManager, transactionManager) {
+            this.chartManager = chartManager;
+            this.transactionManager = transactionManager;
+            this.currentAnalysisDate = new Date();
+            this.setupEventListeners();
+            // Différer l'appel de updateTitle() pour s'assurer que l'élément existe
+            setTimeout(() => {
                 this.updateTitle();
+            }, 100);
+        }
+        
+        setupEventListeners() {
+            // Navigation boutons
+            document.getElementById('prev-analysis-month')?.addEventListener('click', () => {
+                this.previousMonth();
+            });
+            
+            document.getElementById('next-analysis-month')?.addEventListener('click', () => {
+                this.nextMonth();
+            });
+            
+            // Sélecteur de mois - CORRECTION: apply-month au lieu de apply-analysis-month
+            document.getElementById('apply-month')?.addEventListener('click', () => {
+                const monthInput = document.getElementById('analysis-month-select');
+                if (monthInput.value) {
+                    const [year, month] = monthInput.value.split('-');
+                    this.currentAnalysisDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+                    this.updateChart();
+                    this.updateTitle();
+                }
+            });
+            
+            // Event listeners pour les champs de dépenses contraintes
+            const fixedExpenseFields = [
+                'fixedLoyer', 'fixedEdf', 'fixedInternet', 'fixedCredit', 
+                'fixedImpot', 'fixedAutres', 'fixedAssuranceMaison', 'fixedAssuranceVoiture'
+            ];
+            
+            fixedExpenseFields.forEach(fieldName => {
+                const element = document.getElementById(fieldName);
+                if (element) {
+                    // Event listener pour la saisie en temps réel
+                    element.addEventListener('input', () => {
+                        this.updateFixedExpenses();
+                    });
+                    
+                    // Event listener pour la validation quand l'utilisateur quitte le champ
+                    element.addEventListener('blur', () => {
+                        this.updateFixedExpenses();
+                    });
+                }
+            });
+
+            console.log('✅ Event listeners pour Analytics Navigator configurés');
+        }
+        
+        previousMonth() {
+            this.currentAnalysisDate.setMonth(this.currentAnalysisDate.getMonth() - 1);
+            this.updateChart();
+            this.updateTitle();
+        }
+        
+        nextMonth() {
+            this.currentAnalysisDate.setMonth(this.currentAnalysisDate.getMonth() + 1);
+            this.updateChart();
+            this.updateTitle();
+        }
+        
+        updateChart() {
+            if (this.chartManager && this.chartManager.updateCategoryChart) {
+                // Passer la date sélectionnée au chart manager
+                this.chartManager.updateCategoryChart(
+                    this.currentAnalysisDate.getFullYear(),
+                    this.currentAnalysisDate.getMonth()
+                );
+            } else if (window.calendar && window.calendar.updateCategoryChart) {
+                // Fallback vers l'instance globale
+                window.calendar.updateAnalyticsCategoryChart(
+                    this.currentAnalysisDate.getFullYear(),
+                    this.currentAnalysisDate.getMonth()
+                );
             }
-        });
-		
-		// Event listeners pour les champs de dépenses contraintes
-		const fixedExpenseFields = [
-			'fixedLoyer', 'fixedEdf', 'fixedInternet', 'fixedCredit', 
-			'fixedImpot', 'fixedAutres', 'fixedAssuranceMaison', 'fixedAssuranceVoiture'
-		];
-		
-		fixedExpenseFields.forEach(fieldName => {
-			if (this.elements[fieldName]) {
-				// Event listener pour la saisie en temps réel
-				this.elements[fieldName].addEventListener('input', () => {
-					this.updateFixedExpenses();
-				});
-				
-				// Event listener pour la validation quand l'utilisateur quitte le champ
-				this.elements[fieldName].addEventListener('blur', () => {
-					this.updateFixedExpenses();
-				});
-			}
-		});
-
-		console.log('✅ Event listeners pour les dépenses contraintes configurés');
-    }
-    
-    previousMonth() {
-        this.currentAnalysisDate.setMonth(this.currentAnalysisDate.getMonth() - 1);
-        this.updateChart();
-        this.updateTitle();
-    }
-    
-    nextMonth() {
-        this.currentAnalysisDate.setMonth(this.currentAnalysisDate.getMonth() + 1);
-        this.updateChart();
-        this.updateTitle();
-    }
-    
-    updateChart() {
-        if (this.chartManager && this.chartManager.updateCategoryChart) {
-            // Passer la date sélectionnée au chart manager
-            this.chartManager.updateCategoryChart(
-                this.currentAnalysisDate.getFullYear(),
-                this.currentAnalysisDate.getMonth()
-            );
-        } else if (window.calendar && window.calendar.updateCategoryChart) {
-            // Fallback vers l'instance globale
-            window.calendar.updateAnalyticsCategoryChart(
-                this.currentAnalysisDate.getFullYear(),
-                this.currentAnalysisDate.getMonth()
-            );
         }
-    }
-    
-    updateTitle() {
-        const monthName = this.currentAnalysisDate.toLocaleDateString('fr-FR', { 
-            month: 'long', 
-            year: 'numeric' 
-        });
         
-        const titleElement = document.getElementById('analysis-month-title');
-        if (titleElement) {
+        updateTitle() {
+            const titleElement = document.getElementById('analysis-month-title');
+            if (!titleElement) {
+                console.warn('⚠️ Élément analysis-month-title non trouvé');
+                // Essayer de nouveau après un délai
+                setTimeout(() => {
+                    this.updateTitle();
+                }, 500);
+                return;
+            }
+            
+            const monthName = this.currentAnalysisDate.toLocaleDateString('fr-FR', { 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
             titleElement.textContent = `Dépenses par Catégorie - ${monthName}`;
+            
+            // Synchroniser le sélecteur de mois
+            const monthSelect = document.getElementById('analysis-month-select');
+            if (monthSelect) {
+                const year = this.currentAnalysisDate.getFullYear();
+                const month = String(this.currentAnalysisDate.getMonth() + 1).padStart(2, '0');
+                monthSelect.value = `${year}-${month}`;
+            }
+            
+            console.log('✅ Titre mis à jour:', monthName);
         }
         
-        // Synchroniser le sélecteur de mois
-        const monthSelect = document.getElementById('analysis-month-select');
-        if (monthSelect) {
-            const year = this.currentAnalysisDate.getFullYear();
-            const month = String(this.currentAnalysisDate.getMonth() + 1).padStart(2, '0');
-            monthSelect.value = `${year}-${month}`;
+        // Méthode publique pour forcer la mise à jour du titre
+        forceUpdateTitle() {
+            console.log('🔄 Mise à jour forcée du titre Analytics');
+            this.updateTitle();
+        }
+        
+        // Méthode utilitaire pour les dépenses fixes (si nécessaire)
+        updateFixedExpenses() {
+            // Cette méthode devrait être dans la classe principale
+            if (window.calendar && window.calendar.updateFixedExpenses) {
+                window.calendar.updateFixedExpenses();
+            }
         }
     }
-};
-
