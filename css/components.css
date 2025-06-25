@@ -1237,3 +1237,64 @@ button:disabled {
         transform: none;
     }
 }
+
+/* Styles pour les actions de transaction */
+.transaction-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-edit {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.btn-edit:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+.btn-edit-mode {
+    background: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.btn-edit-mode:hover {
+    background: #e0a800 !important;
+}
+
+.btn-cancel-edit {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 8px;
+    transition: background 0.2s;
+}
+
+.btn-cancel-edit:hover {
+    background: #5a6268;
+}
+
+/* Responsive pour mobile */
+@media (max-width: 768px) {
+    .transaction-actions {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .btn-edit, .btn-danger {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+}

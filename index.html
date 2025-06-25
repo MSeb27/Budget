@@ -52,6 +52,8 @@
                                 <select id="category" required>
                                     <option value="">Sélectionner...</option>
 									<option value="Alimentation">🍕 Alimentation</option>
+									<option value="Assurance maison">🏠🛡️ Assurance maison</option>
+									<option value="Assurance voiture">🚗🛡️ Assurance voiture</option>
 								    <option value="Cigarettes">🚬 Cigarettes</option>
     								<option value="EDF-GDF">⚡ EDF-GDF</option>
     								<option value="Essence">⛽ Essence</option>
@@ -174,32 +176,33 @@
         <!-- Tab Content: Analytics -->
         <div class="tab-content" id="tab-analytics">
             <div class="analytics-container">
-                <h2>📊 Analyses Financières</h2>
-                
-                <div class="analytics-grid">
-                    <div class="chart-container full-width">
-                        <h3>Dépenses par Catégorie (Mois Actuel)</h3>
-                        <div id="categoryChart" class="custom-category-chart">
-                            <!-- Custom chart will be generated here -->
-                        </div>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <h3>Solde fin de mois sur 12 derniers mois</h3>
-                        <canvas id="budgetChart"></canvas>
-                    </div>
-                    
-                    <div class="chart-container">
-                        <h3>📊 Dépenses 3D par Catégorie (Mois Actuel)</h3>
-                        <div id="categories3DChart"></div>
-                    </div>
-                    
-                    <div class="chart-container full-width">
-                        <h3>🌟 Évolution 3D des Dépenses (6 derniers mois)</h3>
-                        <div id="temporal3DChart"></div>
-                    </div>
-                </div>
-            </div>
+				<h2>📊 Analyses Financières</h2>
+    
+				<!-- Navigation mensuelle -->
+				<div class="month-navigation">
+					<button id="prev-analysis-month" class="btn-nav">◀ Mois précédent</button>
+					<div class="current-month">
+						<h3 id="analysis-month-title">Dépenses par Catégorie - Mars 2024</h3>
+					</div>
+					<button id="next-analysis-month" class="btn-nav">Mois suivant ▶</button>
+				</div>
+    
+				<!-- Alternative : Sélecteur de mois -->
+				<div class="month-selector">
+					<label for="analysis-month-select">Choisir un mois :</label>
+					<input type="month" id="analysis-month-select" />
+					<button id="apply-month" class="btn-primary">Afficher</button>
+				</div>
+    
+				<!-- SEUL graphique conservé -->
+				<div class="analytics-grid">
+					<div class="chart-container full-width">
+						<div id="categoryChart" class="custom-category-chart">
+						<!-- Custom chart will be generated here -->
+						</div>
+					</div>
+				</div>
+			</div>
         </div>
 
 		<!-- Tab Content: Dashboard -->
@@ -416,27 +419,46 @@
                     <div class="settings-card">
                         <h3>📌 Dépenses Contraintes</h3>
                         <div class="fixed-expenses-grid">
-                            <div class="fixed-expense-item compact">
-                                <label>🏠 Loyer</label>
-                                <input type="number" id="fixed-loyer" placeholder="0.00" step="0.01" />
-                            </div>
-                            <div class="fixed-expense-item compact">
-                                <label>⚡ EDF-GDF</label>
-                                <input type="number" id="fixed-edf" placeholder="0.00" step="0.01" />
-                            </div>
-                            <div class="fixed-expense-item compact">
-                                <label>🌐 Internet</label>
-                                <input type="number" id="fixed-internet" placeholder="0.00" step="0.01" />
-                            </div>
-                            <div class="fixed-expense-item compact">
-                                <label>🏦 Crédit</label>
-                                <input type="number" id="fixed-credit" placeholder="0.00" step="0.01" />
-                            </div>
-                            <div class="fixed-expense-item compact">
-                                <label>📦 Autres</label>
-                                <input type="number" id="fixed-autres" placeholder="0.00" step="0.01" />
-                            </div>
-                        </div>
+    <!-- Ligne 1 -->
+    <div class="fixed-expense-item compact">
+        <label>🏠 Loyer</label>
+        <input type="number" id="fixed-loyer" placeholder="0.00" step="0.01" />
+    </div>
+    <div class="fixed-expense-item compact">
+        <label>⚡ EDF-GDF</label>
+        <input type="number" id="fixed-edf" placeholder="0.00" step="0.01" />
+    </div>
+    
+    <!-- Ligne 2 -->
+    <div class="fixed-expense-item compact">
+        <label>🌐 Internet</label>
+        <input type="number" id="fixed-internet" placeholder="0.00" step="0.01" />
+    </div>
+    <div class="fixed-expense-item compact">
+        <label>🏦 Crédit</label>
+        <input type="number" id="fixed-credit" placeholder="0.00" step="0.01" />
+    </div>
+    
+    <!-- Ligne 3 - NOUVELLES ASSURANCES -->
+    <div class="fixed-expense-item compact">
+        <label>🏠🛡️ Assurance maison</label>
+        <input type="number" id="fixed-assurance-maison" placeholder="0.00" step="0.01" />
+    </div>
+    <div class="fixed-expense-item compact">
+        <label>🚗🛡️ Assurance voiture</label>
+        <input type="number" id="fixed-assurance-voiture" placeholder="0.00" step="0.01" />
+    </div>
+    
+    <!-- Ligne 4 -->
+    <div class="fixed-expense-item compact">
+        <label>📦 Autres</label>
+        <input type="number" id="fixed-autres" placeholder="0.00" step="0.01" />
+    </div>
+    <div class="fixed-expense-item compact total">
+        <label>💰 Total</label>
+        <input type="number" id="fixed-total" readonly />
+    </div>
+</div>
                         <div class="fixed-expenses-total">
                             <strong>Total: <span id="fixed-total">0.00 €</span></strong>
                         </div>

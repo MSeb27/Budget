@@ -49,29 +49,33 @@ class TransactionManager {
         return transaction;
     }
 
-    updateTransaction(id, updates) {
-        const index = this.transactions.findIndex(t => t.id === id);
-        if (index === -1) {
-            throw new Error('Transaction non trouvée');
-        }
-
-        const updatedTransaction = { 
-            ...this.transactions[index], 
-            ...updates,
-            updatedAt: new Date().toISOString()
-        };
-
-        const error = this.validateTransaction(updatedTransaction);
-        if (error) {
-            throw new Error(error);
-        }
-
-        this.transactions[index] = updatedTransaction;
-        this.saveTransactions();
-        this.triggerTransactionChange();
-        
-        return updatedTransaction;
-    }
+    updateTransaction(id, updatedData) {
+		const transactionId = parseInt(id);
+		const index = this.transactions.findIndex(t => t.id === transactionId);
+    
+		if (index === -1) {
+			throw new Error('Transaction non trouvée');
+		}
+    
+		// Valider les nouvelles données
+		const validationError = this.validateTransaction(updatedData);
+		if (validationError) {
+			throw new Error(validationError);
+		}
+    
+		// Conserver l'ID original et mettre à jour le reste
+		const updatedTransaction = {
+			...this.transactions[index],
+			...updatedData,
+			id: transactionId // S'assurer que l'ID reste inchangé
+		};
+    
+		this.transactions[index] = updatedTransaction;
+		this.saveTransactions();
+		this.triggerTransactionChange();
+    
+		return updatedTransaction;
+	}
 
     deleteTransaction(id) {
         const initialLength = this.transactions.length;

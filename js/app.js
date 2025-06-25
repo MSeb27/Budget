@@ -83,6 +83,11 @@ class BudgetCalendar {
 
             // Initialiser le gestionnaire de graphiques
             this.chartManager = new ChartsManager(this.transactionManager);
+			
+			if (this.chartManager) {
+				this.analyticsNavigator = new AnalyticsNavigator(this.chartManager, this.transactionManager);
+				console.log('✅ Analytics Navigator initialisé');
+			}
 
             // Initialiser le tableau de bord amélioré
             this.enhancedDashboard = new EnhancedDashboard(
@@ -232,6 +237,12 @@ setupEventListeners() {
         if (this.elements.fixedAutres) {
             this.elements.fixedAutres.addEventListener('input', () => this.updateFixedExpenses());
         }
+		if (this.elements.fixedAssuranceMaison) {
+			this.elements.fixedAssuranceMaison.addEventListener('input', () => this.updateFixedExpenses());
+		}
+		if (this.elements.fixedAssuranceVoiture) {
+			this.elements.fixedAssuranceVoiture.addEventListener('input', () => this.updateFixedExpenses());
+		}
         
         // Settings listeners
         if (this.elements.exportData) {
@@ -312,7 +323,9 @@ setupEventListeners() {
 			'Internet': 'internet',
 			'Remboursement crédit': 'credit',
 			'Impôt': 'impot', 
-			'Autres': 'autres'
+			'Autres': 'autres',
+			'Assurance maison': 'assuranceMaison',
+			'Assurance voiture': 'assuranceVoiture'
 		};
     
 		const fixedExpenseKey = constrainedExpenseMapping[category];
@@ -372,20 +385,38 @@ setupEventListeners() {
         this.updateFixedExpensesTotal();
     }
 
-    updateFixedExpenses() {
-		this.fixedExpenses = {
-			loyer: parseFloat(this.elements.fixedLoyer.value) || 0,
-			edf: parseFloat(this.elements.fixedEdf.value) || 0,
-			internet: parseFloat(this.elements.fixedInternet.value) || 0,
-			credit: parseFloat(this.elements.fixedCredit.value) || 0,
-			impot: parseFloat(this.elements.fixedImpot.value) || 0, 
-			autres: parseFloat(this.elements.fixedAutres.value) || 0
-		};
+updateFixedExpenses() {
+    const loyer = parseFloat(this.elements.fixedLoyer?.value) || 0;
+    const edf = parseFloat(this.elements.fixedEdf?.value) || 0;
+    const internet = parseFloat(this.elements.fixedInternet?.value) || 0;
+    const credit = parseFloat(this.elements.fixedCredit?.value) || 0;
+    const autres = parseFloat(this.elements.fixedAutres?.value) || 0;
     
-		StorageManager.saveFixedExpenses(this.fixedExpenses);
-		this.updateFixedExpensesTotal();
-	}
+    // AJOUTER CES DEUX LIGNES
+    const assuranceMaison = parseFloat(this.elements.fixedAssuranceMaison?.value) || 0;
+    const assuranceVoiture = parseFloat(this.elements.fixedAssuranceVoiture?.value) || 0;
 
+    // MODIFIER LE CALCUL DU TOTAL
+    const total = loyer + edf + internet + credit + autres + assuranceMaison + assuranceVoiture;
+
+    if (this.elements.fixedTotal) {
+        this.elements.fixedTotal.value = total.toFixed(2);
+    }
+
+    // MODIFIER L'OBJET fixedExpenses
+    this.fixedExpenses = {
+        loyer,
+        edf,
+        internet,
+        credit,
+        autres,
+        assuranceMaison,     
+        assuranceVoiture,    
+        total
+    };
+
+    StorageManager.saveFixedExpenses(this.fixedExpenses);
+}
     updateFixedExpensesTotal() {
         const total = Object.values(this.fixedExpenses).reduce((sum, val) => sum + val, 0);
         this.elements.fixedTotal.textContent = `${total.toFixed(2)} €`;
@@ -855,6 +886,7 @@ updateThemePreview() {
             'month-income', 'month-expenses', 'month-balance', 'total-balance',
             'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
             'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-autres', 'fixed-total',
+			'fixed-assurance-maison', 'fixed-assurance-voiture',
             'export-data', 'import-data', 'import-file', 'clear-data', 'theme-select',
             'expense-label', 'income-label'
         ];
@@ -886,45 +918,73 @@ updateThemePreview() {
 
     // ===== TRANSACTION METHODS =====
     handleSubmit(e) {
-        e.preventDefault();
-        this.elements.errorMessage.textContent = '';
+		e.preventDefault();
+		this.elements.errorMessage.textContent = '';
 
-        const transaction = {
-            id: Date.now(),
-            label: this.elements.label.value.trim(),
-            amount: parseFloat(this.elements.amount.value),
-            category: this.elements.category.value,
-            date: this.elements.date.value,
-            type: this.elements.typeExpense.checked ? 'expense' : 'income'
-        };
+		const form = this.elements.form;
+		const isEditMode = form.dataset.editMode === 'true';
+		const editId = form.dataset.editId;
 
-        const error = this.validateTransaction(transaction);
-        if (error) {
-            this.elements.errorMessage.textContent = error;
-            return;
-        }
+		const transactionData = {
+			label: this.elements.label.value.trim(),
+			amount: parseFloat(this.elements.amount.value),
+			category: this.elements.category.value,
+			date: this.elements.date.value,
+			type: this.elements.typeExpense.checked ? 'expense' : 'income'
+		};
 
-        // Utiliser le transaction manager si disponible
-        if (this.transactionManager) {
-            try {
-                this.transactionManager.addTransaction(transaction);
-                this.transactions = this.transactionManager.getAllTransactions();
-            } catch (error) {
-                this.elements.errorMessage.textContent = error.message;
-                return;
-            }
-        } else {
-            // Fallback
-            this.transactions.push(transaction);
-            if (!StorageManager.saveTransactions(this.transactions)) {
-                this.elements.errorMessage.textContent = "Erreur lors de la sauvegarde";
-                return;
-            }
-        }
+		const error = this.validateTransaction(transactionData);
+		if (error) {
+			this.elements.errorMessage.textContent = error;
+			return;
+		}
 
-        this.resetForm();
-        this.updateAllComponents();
-    }
+		try {
+			if (isEditMode && editId) {
+				// Mode édition
+				transactionData.id = parseInt(editId);
+            
+				if (this.transactionManager) {
+					// Utiliser le transaction manager si disponible
+					this.transactionManager.updateTransaction(editId, transactionData);
+					this.transactions = this.transactionManager.getAllTransactions();
+				} else {
+					// Fallback : mise à jour directe
+					const index = this.transactions.findIndex(t => t.id === parseInt(editId));
+					if (index !== -1) {
+						this.transactions[index] = { ...this.transactions[index], ...transactionData };
+						StorageManager.saveTransactions(this.transactions);
+					} else {
+						throw new Error('Transaction non trouvée pour modification');
+					}
+				}
+            
+				console.log('✅ Transaction modifiée avec succès');
+				this.cancelEdit(); // Sortir du mode édition
+			} else {
+				// Mode ajout normal
+				transactionData.id = Date.now();
+            
+				if (this.transactionManager) {
+					this.transactionManager.addTransaction(transactionData);
+					this.transactions = this.transactionManager.getAllTransactions();
+				} else {
+					this.transactions.push(transactionData);
+					StorageManager.saveTransactions(this.transactions);
+				}
+            
+				console.log('✅ Transaction ajoutée avec succès');
+				this.resetForm();
+			}
+
+			// Mettre à jour tous les composants
+			this.updateAllComponents();
+        
+		} catch (error) {
+			console.error('❌ Erreur lors de la sauvegarde:', error);
+			this.elements.errorMessage.textContent = error.message;
+		}
+	}
 
 
     validateTransaction(transaction) {
@@ -983,7 +1043,87 @@ updateThemePreview() {
         }
     }
 	}
+	
+	editTransaction(id) {
+		const transaction = this.transactionManager?.getTransaction(id) || 
+							this.transactions.find(t => t.id === parseInt(id));
+                       
+		if (!transaction) {
+			alert('Transaction introuvable');
+			return;
+		}
+    
+		// Remplir le formulaire avec les données existantes
+		this.elements.label.value = transaction.label;
+		this.elements.amount.value = transaction.amount;
+		this.elements.category.value = transaction.category;
+		this.elements.date.value = transaction.date;
+    
+		// Sélectionner le bon type
+		if (transaction.type === 'income') {
+			this.elements.typeIncome.checked = true;
+		} else {
+			this.elements.typeExpense.checked = true;
+		}
+    
+		// Mettre à jour l'affichage des radio buttons
+		this.updateRadioStyles();
+    
+		// Passer en mode édition
+		this.setEditMode(id);
+    
+		// Scroll vers le formulaire pour l'UX
+		document.getElementById('transaction-form').scrollIntoView({ behavior: 'smooth' });
+	}
+	
+	setEditMode(transactionId) {
+		const form = this.elements.form;
+		const submitBtn = form.querySelector('button[type="submit"]');
+    
+		// Marquer le mode édition
+		form.dataset.editMode = 'true';
+		form.dataset.editId = transactionId;
+    
+		// Changer le texte et le style du bouton
+		if (submitBtn) {
+			submitBtn.innerHTML = '✏️ Modifier Transaction';
+			submitBtn.classList.add('btn-edit-mode');
+		}
+    
+		// Ajouter un bouton annuler s'il n'existe pas déjà
+		if (!form.querySelector('.btn-cancel-edit')) {
+			const cancelBtn = document.createElement('button');
+			cancelBtn.type = 'button';
+			cancelBtn.className = 'btn-cancel-edit btn-secondary';
+			cancelBtn.innerHTML = '❌ Annuler';
+			cancelBtn.onclick = () => this.cancelEdit();
+			submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+		}
+	}
 
+	cancelEdit() {
+		const form = this.elements.form;
+		const submitBtn = form.querySelector('button[type="submit"]');
+		const cancelBtn = form.querySelector('.btn-cancel-edit');
+    
+		// Remettre en mode normal
+		delete form.dataset.editMode;
+		delete form.dataset.editId;
+    
+		// Restaurer le bouton submit
+		if (submitBtn) {
+			submitBtn.innerHTML = '➕ Ajouter Transaction';
+			submitBtn.classList.remove('btn-edit-mode');
+		}
+    
+		// Supprimer le bouton annuler
+		if (cancelBtn) {
+			cancelBtn.remove();
+		}
+    
+		// Vider le formulaire
+		this.resetForm();
+	}
     // ===== CALENDAR METHODS =====
     previousMonth() {
         this.currentDate.setMonth(this.currentDate.getMonth() - 1);
@@ -1220,17 +1360,20 @@ updateThemePreview() {
             row.className = `transaction-row ${transaction.type === 'income' ? 'income' : 'expense'}`;
             
             row.innerHTML = `
-                <td>${new Date(transaction.date).toLocaleDateString('fr-FR')}</td>
-                <td>${transaction.label}</td>
-                <td>${transaction.category}</td>
-                <td>${transaction.amount.toFixed(2)} €</td>
-                <td>${transaction.type === 'income' ? '💰 Revenu' : '💸 Dépense'}</td>
-                <td>
-                    <button class="btn-danger" onclick="window.calendar.deleteTransaction('${transaction.id}')">
-                        🗑️ Supprimer
-                    </button>
-                </td>
-            `;
+			<td>${new Date(transaction.date).toLocaleDateString('fr-FR')}</td>
+			<td>${transaction.label}</td>
+			<td>${transaction.category}</td>
+			<td>${transaction.amount.toFixed(2)} €</td>
+			<td>${transaction.type === 'income' ? '💰 Revenu' : '💸 Dépense'}</td>
+			<td class="transaction-actions">
+				<button class="btn-edit" onclick="window.calendar.editTransaction('${transaction.id}')" title="Modifier">
+					✏️
+				</button>
+				<button class="btn-danger" onclick="window.calendar.deleteTransaction('${transaction.id}')" title="Supprimer">
+					🗑️
+				</button>
+			</td>
+		`;
             
             this.elements.transactionsList.appendChild(row);
         });
@@ -1244,12 +1387,6 @@ updateThemePreview() {
             return;
         }
         
-        if (typeof Plotly === 'undefined') {
-            console.log('Plotly.js pas encore chargé, nouvelle tentative...');
-            setTimeout(() => this.initializeCharts(), 500);
-            return;
-        }
-        
         try {
             // Utiliser le chart manager si disponible
             if (this.chartManager) {
@@ -1259,8 +1396,6 @@ updateThemePreview() {
             } else {
                 // Fallback vers l'ancienne méthode
                 this.createCategoryChart();
-                this.createBudgetChart();
-                this.create3DCharts();
                 this.chartsInitialized = true;
                 this.updateCharts();
                 console.log('✅ Charts initialisés via méthode fallback');
@@ -1281,14 +1416,15 @@ updateThemePreview() {
         try {
             if (this.chartManager) {
                 this.chartManager.updateAllCharts();
-            } else {
+            } 
+			else {
                 // Fallback vers l'ancienne méthode
                 this.updateCategoryChart();
-                this.updateBudgetChart();
-                this.update3DCharts();
             }
-        } catch (error) {
-            console.error('❌ Erreur lors de la mise à jour des charts:', error);
+			console.log('✅ Chart catégorie mis à jour');
+        } 
+		catch (error) {
+            console.error('❌ Erreur lors de la mise à jour du chart:', error);
         }
     }
 
@@ -1356,107 +1492,7 @@ updateThemePreview() {
 
         container.innerHTML = html;
     }
-
-    createBudgetChart() {
-        const ctx = document.getElementById('budgetChart').getContext('2d');
-        this.charts.budget = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Solde fin de mois',
-                    data: [],
-                    backgroundColor: 'rgba(55, 66, 250, 0.1)',
-                    borderColor: '#3742FA',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    pointBackgroundColor: '#3742FA',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 3,
-                    pointRadius: 8,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true,
-                            font: {
-                                size: 14,
-                                weight: 'bold'
-                            }
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0,0,0,0.8)',
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        borderColor: '#fff',
-                        borderWidth: 1,
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.parsed.y;
-                                return `Solde: ${value >= 0 ? '+' : ''}${value.toFixed(2)}€`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
-                    },
-                    y: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                return (value >= 0 ? '+' : '') + value + '€';
-                            },
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    updateBudgetChart() {
-        if (!this.charts.budget) return;
-        
-        const budgetData = this.getBudgetData();
-        
-        this.charts.budget.data.labels = budgetData.labels;
-        this.charts.budget.data.datasets[0].data = budgetData.cumulativeBalance;
-        
-        // Couleurs dynamiques selon les valeurs positives/négatives
-        const pointColors = budgetData.cumulativeBalance.map(value => value >= 0 ? '#3742FA' : '#FF4757');
-        const borderColors = budgetData.cumulativeBalance.map(value => value >= 0 ? '#3742FA' : '#FF4757');
-        
-        this.charts.budget.data.datasets[0].pointBackgroundColor = pointColors;
-        this.charts.budget.data.datasets[0].borderColor = '#3742FA';
-        
-        this.charts.budget.update();
-    }
-
+    
     getBudgetData() {
         const now = new Date();
         const months = [];
@@ -1503,109 +1539,6 @@ updateThemePreview() {
         };
     }
 
-    // ===== 3D CHARTS METHODS =====
-    create3DCharts() {
-        // Initialiser les conteneurs 3D
-        this.charts.categories3D = { initialized: true };
-        this.charts.temporal3D = { initialized: true };
-    }
-
-    update3DCharts() {
-        this.update3DCategoriesChart();
-        this.updateTemporal3DChart();
-    }
-
-    update3DCategoriesChart() {
-        const container = document.getElementById('categories3DChart');
-        if (!container) return;
-
-        const year = this.currentDate.getFullYear();
-        const month = this.currentDate.getMonth();
-        
-        const monthExpenses = this.transactions.filter(t => {
-            const tDate = new Date(t.date);
-            return tDate.getFullYear() === year && 
-                   tDate.getMonth() === month && 
-                   t.type === 'expense';
-        });
-
-        const categoryTotals = {};
-        monthExpenses.forEach(t => {
-            categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-        });
-
-        const sortedCategories = Object.entries(categoryTotals)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 10); // Top 10 pour un meilleur effet arc-en-ciel
-
-        if (sortedCategories.length === 0) {
-            container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 400px; color: #6c757d; font-style: italic;">Aucune dépense ce mois-ci</div>';
-            return;
-        }
-
-        const categories = sortedCategories.map(([cat]) => cat);
-        const amounts = sortedCategories.map(([,amount]) => amount);
-        
-        // Création d'un dégradé arc-en-ciel pour les barres
-        const rainbowColors = this.generateRainbowColors(categories.length);
-
-        // Utiliser scatter3d avec des barres personnalisées pour un meilleur effet 3D
-        const enhancedData = this.create3DBarData(categories, amounts, rainbowColors);
-
-        const layout = {
-            title: {
-                text: `Dépenses du mois - Style Arc-en-ciel (${amounts.reduce((a, b) => a + b, 0).toFixed(2)}€ total)`,
-                font: { size: 14, color: '#495057', weight: 'bold' }
-            },
-            scene: {
-                xaxis: { 
-                    title: 'Catégories', 
-                    titlefont: { color: '#495057', size: 12 },
-                    tickfont: { color: '#495057', size: 10 },
-                    backgroundcolor: 'rgba(0,0,0,0.02)',
-                    gridcolor: 'rgba(0,0,0,0.1)',
-                    showbackground: true
-                },
-                yaxis: { 
-                    title: 'Montant (€)', 
-                    titlefont: { color: '#495057', size: 12 },
-                    tickfont: { color: '#495057', size: 10 },
-                    backgroundcolor: 'rgba(0,0,0,0.02)',
-                    gridcolor: 'rgba(0,0,0,0.1)',
-                    showbackground: true
-                },
-                zaxis: {
-                    title: '',
-                    showticklabels: false,
-                    showgrid: false,
-                    zeroline: false,
-                    backgroundcolor: 'rgba(0,0,0,0)',
-                    range: [-1, 1]
-                },
-                camera: {
-                    eye: { x: 1.8, y: 1.8, z: 1.5 },
-                    center: { x: 0, y: 0, z: 0 },
-                    up: { x: 0, y: 0, z: 1 }
-                },
-                bgcolor: 'rgba(248, 249, 250, 0.8)',
-                aspectmode: 'manual',
-                aspectratio: { x: 1, y: 0.8, z: 0.6 }
-            },
-            margin: { l: 0, r: 0, b: 40, t: 40 },
-            paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            font: { family: 'Segoe UI, sans-serif', color: '#495057' }
-        };
-
-        const config = {
-            displayModeBar: true,
-            modeBarButtons: [['zoom3d', 'pan3d', 'orbitRotation', 'resetCameraDefault3d']],
-            displaylogo: false,
-            responsive: true
-        };
-
-        Plotly.newPlot(container, enhancedData, layout, config);
-    }
 
     // Fonction pour générer des couleurs arc-en-ciel
     generateRainbowColors(count) {
@@ -1617,69 +1550,6 @@ updateThemePreview() {
             colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
         }
         return colors;
-    }
-
-    // Création de barres 3D personnalisées avec effet de profondeur
-    create3DBarData(categories, amounts, colors) {
-        const data = [];
-        const maxAmount = Math.max(...amounts);
-
-        categories.forEach((category, index) => {
-            const amount = amounts[index];
-            const color = colors[index];
-            const height = amount;
-            const barWidth = 0.6;
-            const barDepth = 0.6;
-
-            // Face avant de la barre
-            data.push({
-                type: 'mesh3d',
-                x: [index - barWidth/2, index + barWidth/2, index + barWidth/2, index - barWidth/2],
-                y: [0, 0, height, height],
-                z: [barDepth/2, barDepth/2, barDepth/2, barDepth/2],
-                i: [0, 0],
-                j: [1, 2], 
-                k: [2, 3],
-                facecolor: [color, color],
-                opacity: 0.9,
-                showscale: false,
-                hovertemplate: `${category}<br>${amount.toFixed(2)}€<extra></extra>`
-            });
-
-            // Face du dessus de la barre (plus claire)
-            const topColor = this.lightenColor(color, 20);
-            data.push({
-                type: 'mesh3d',
-                x: [index - barWidth/2, index + barWidth/2, index + barWidth/2, index - barWidth/2],
-                y: [height, height, height, height],
-                z: [-barDepth/2, -barDepth/2, barDepth/2, barDepth/2],
-                i: [0, 0],
-                j: [1, 2],
-                k: [2, 3],
-                facecolor: [topColor, topColor],
-                opacity: 0.95,
-                showscale: false,
-                hovertemplate: `${category}<br>${amount.toFixed(2)}€<extra></extra>`
-            });
-
-            // Face droite de la barre (plus sombre)
-            const sideColor = this.darkenColor(color, 15);
-            data.push({
-                type: 'mesh3d',
-                x: [index + barWidth/2, index + barWidth/2, index + barWidth/2, index + barWidth/2],
-                y: [0, height, height, 0],
-                z: [-barDepth/2, -barDepth/2, barDepth/2, barDepth/2],
-                i: [0, 0],
-                j: [1, 2],
-                k: [2, 3],
-                facecolor: [sideColor, sideColor],
-                opacity: 0.85,
-                showscale: false,
-                hovertemplate: `${category}<br>${amount.toFixed(2)}€<extra></extra>`
-            });
-        });
-
-        return data;
     }
 
     // Fonctions utilitaires pour les couleurs
@@ -1704,141 +1574,6 @@ updateThemePreview() {
         return color;
     }
 
-    updateTemporal3DChart() {
-        const container = document.getElementById('temporal3DChart');
-        if (!container) return;
-
-        // Générer les 6 derniers mois
-        const months = [];
-        const now = new Date();
-        
-        for (let i = 5; i >= 0; i--) {
-            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            months.push({
-                key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
-                label: date.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
-                year: date.getFullYear(),
-                month: date.getMonth()
-            });
-        }
-
-        // Obtenir toutes les catégories d'expenses
-        const allCategories = [...new Set(
-            this.transactions
-                .filter(t => t.type === 'expense')
-                .map(t => t.category)
-        )];
-
-        // Créer la matrice de données
-        const dataMatrix = [];
-        const monthLabels = [];
-        const categoryLabels = [];
-
-        months.forEach((monthData, monthIndex) => {
-            monthLabels.push(monthData.label);
-            
-            allCategories.forEach((category, catIndex) => {
-                if (monthIndex === 0) {
-                    categoryLabels.push(category);
-                }
-
-                const monthExpenses = this.transactions.filter(t => {
-                    const tDate = new Date(t.date);
-                    return tDate.getFullYear() === monthData.year && 
-                           tDate.getMonth() === monthData.month && 
-                           t.type === 'expense' &&
-                           t.category === category;
-                });
-
-                const total = monthExpenses.reduce((sum, t) => sum + t.amount, 0);
-                
-                dataMatrix.push({
-                    x: monthIndex,
-                    y: catIndex, 
-                    z: total,
-                    month: monthData.label,
-                    category: category,
-                    amount: total
-                });
-            });
-        });
-
-        // Préparer les données pour le graphique 3D surface
-        const x = monthLabels;
-        const y = categoryLabels;
-        const z = [];
-
-        // Créer la matrice Z pour la surface
-        for (let catIndex = 0; catIndex < categoryLabels.length; catIndex++) {
-            const row = [];
-            for (let monthIndex = 0; monthIndex < monthLabels.length; monthIndex++) {
-                const point = dataMatrix.find(d => d.x === monthIndex && d.y === catIndex);
-                row.push(point ? point.z : 0);
-            }
-            z.push(row);
-        }
-
-        const data = [{
-            x: x,
-            y: y,
-            z: z,
-            type: 'surface',
-            colorscale: [
-                [0, '#E3F2FD'],
-                [0.2, '#BBDEFB'], 
-                [0.4, '#90CAF9'],
-                [0.6, '#64B5F6'],
-                [0.8, '#2196F3'],
-                [1, '#1976D2']
-            ],
-            showscale: true,
-            colorbar: {
-                title: 'Montant (€)',
-                titlefont: { color: '#495057' },
-                tickfont: { color: '#495057' }
-            }
-        }];
-
-        const layout = {
-            title: {
-                text: 'Évolution des dépenses par catégorie',
-                font: { size: 14, color: '#495057' }
-            },
-            scene: {
-                xaxis: { 
-                    title: 'Mois', 
-                    titlefont: { color: '#495057' },
-                    tickfont: { color: '#495057' }
-                },
-                yaxis: { 
-                    title: 'Catégories', 
-                    titlefont: { color: '#495057' },
-                    tickfont: { color: '#495057' }
-                },
-                zaxis: { 
-                    title: 'Montant (€)', 
-                    titlefont: { color: '#495057' },
-                    tickfont: { color: '#495057' }
-                },
-                camera: {
-                    eye: { x: 1.5, y: 1.5, z: 1.2 }
-                }
-            },
-            margin: { l: 0, r: 0, b: 40, t: 40 },
-            paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            font: { family: 'Segoe UI, sans-serif', color: '#495057' }
-        };
-
-        const config = {
-            displayModeBar: true,
-            modeBarButtons: [['zoom3d', 'pan3d', 'orbitRotation', 'resetCameraDefault3d']],
-            displaylogo: false,
-            responsive: true
-        };
-
-        Plotly.newPlot(container, data, layout, config);
-    }
 }
 
 
@@ -2146,5 +1881,86 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 2000);
     }
-});
+})
+
+// ===== ANALYTICS NAVIGATOR =====
+class AnalyticsNavigator {
+    constructor(chartManager, transactionManager) {
+        this.chartManager = chartManager;
+        this.transactionManager = transactionManager;
+        this.currentAnalysisDate = new Date();
+        this.setupEventListeners();
+        this.updateTitle();
+    }
+    
+    setupEventListeners() {
+        // Navigation boutons
+        document.getElementById('prev-analysis-month')?.addEventListener('click', () => {
+            this.previousMonth();
+        });
+        
+        document.getElementById('next-analysis-month')?.addEventListener('click', () => {
+            this.nextMonth();
+        });
+        
+        // Sélecteur de mois
+        document.getElementById('apply-analysis-month')?.addEventListener('click', () => {
+            const monthInput = document.getElementById('analysis-month-select');
+            if (monthInput.value) {
+                const [year, month] = monthInput.value.split('-');
+                this.currentAnalysisDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+                this.updateChart();
+                this.updateTitle();
+            }
+        });
+    }
+    
+    previousMonth() {
+        this.currentAnalysisDate.setMonth(this.currentAnalysisDate.getMonth() - 1);
+        this.updateChart();
+        this.updateTitle();
+    }
+    
+    nextMonth() {
+        this.currentAnalysisDate.setMonth(this.currentAnalysisDate.getMonth() + 1);
+        this.updateChart();
+        this.updateTitle();
+    }
+    
+    updateChart() {
+        if (this.chartManager && this.chartManager.updateCategoryChart) {
+            // Passer la date sélectionnée au chart manager
+            this.chartManager.updateCategoryChart(
+                this.currentAnalysisDate.getFullYear(),
+                this.currentAnalysisDate.getMonth()
+            );
+        } else if (window.calendar && window.calendar.updateCategoryChart) {
+            // Fallback vers l'instance globale
+            window.calendar.updateAnalyticsCategoryChart(
+                this.currentAnalysisDate.getFullYear(),
+                this.currentAnalysisDate.getMonth()
+            );
+        }
+    }
+    
+    updateTitle() {
+        const monthName = this.currentAnalysisDate.toLocaleDateString('fr-FR', { 
+            month: 'long', 
+            year: 'numeric' 
+        });
+        
+        const titleElement = document.getElementById('analysis-month-title');
+        if (titleElement) {
+            titleElement.textContent = `Dépenses par Catégorie - ${monthName}`;
+        }
+        
+        // Synchroniser le sélecteur de mois
+        const monthSelect = document.getElementById('analysis-month-select');
+        if (monthSelect) {
+            const year = this.currentAnalysisDate.getFullYear();
+            const month = String(this.currentAnalysisDate.getMonth() + 1).padStart(2, '0');
+            monthSelect.value = `${year}-${month}`;
+        }
+    }
+};
 
