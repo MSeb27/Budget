@@ -17,13 +17,12 @@ class AdvancedSearchManager {
         this.lastFilteredResults = [];
         this.initializeElements();
         this.setupEventListeners();
-        this.generateCategoryOptions(); // Ajout de cette méthode manquante
+        this.generateCategoryOptions();
     }
 
     // ===== INITIALISATION =====
     initializeElements() {
         this.elements = {
-            // Correction: utiliser l'ID correct du champ de recherche
             searchInput: document.getElementById('search-input') || document.getElementById('advanced-search-input'),
             filterPanel: document.getElementById('filter-panel'),
             categoryFilters: document.getElementById('category-filters'),
@@ -42,7 +41,6 @@ class AdvancedSearchManager {
             quickFilters: document.getElementById('quick-filters')
         };
 
-        // Debug: afficher les éléments trouvés
         console.log('🔍 Éléments de recherche initialisés:', {
             searchInput: !!this.elements.searchInput,
             filterPanel: !!this.elements.filterPanel,
@@ -59,7 +57,6 @@ class AdvancedSearchManager {
         }
 
         try {
-            // Récupérer toutes les catégories utilisées
             const categories = this.getAllCategories();
             
             if (categories.length === 0) {
@@ -67,7 +64,6 @@ class AdvancedSearchManager {
                 return;
             }
 
-            // Générer les checkboxes pour les catégories
             const categoryHTML = categories.map(category => `
                 <label class="filter-checkbox">
                     <input type="checkbox" value="${category}" />
@@ -80,6 +76,24 @@ class AdvancedSearchManager {
 
         } catch (error) {
             console.error('❌ Erreur lors de la génération des catégories:', error);
+        }
+    }
+
+    // ===== MÉTHODE REFRESH POUR L'ONGLET RECHERCHE =====
+    refresh() {
+        console.log('🔄 Actualisation du gestionnaire de recherche...');
+        
+        try {
+            this.initializeElements();
+            this.generateCategoryOptions();
+            this.createQuickFilters();
+            this.applyFilters();
+            this.updateFilterPresets();
+            
+            console.log('✅ Recherche actualisée avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'actualisation de la recherche:', error);
         }
     }
 
@@ -127,8 +141,8 @@ class AdvancedSearchManager {
         return icons[category] || '📂';
     }
 
+    // Gestion évènements
     setupEventListeners() {
-        // Recherche en temps réel avec debounce
         if (this.elements.searchInput) {
             this.elements.searchInput.addEventListener('input', 
                 Utils.debounce((e) => this.handleSearch(e.target.value), 300)
@@ -138,33 +152,28 @@ class AdvancedSearchManager {
             console.warn('⚠️ Élément de recherche introuvable');
         }
 
-        // Filtres de catégorie
         if (this.elements.categoryFilters) {
             this.elements.categoryFilters.addEventListener('change', (e) => {
                 this.handleCategoryFilter(e);
             });
         }
 
-        // Filtres de type
         if (this.elements.typeFilters) {
             this.elements.typeFilters.addEventListener('change', (e) => {
                 this.handleTypeFilter(e);
             });
         }
 
-        // Plages de dates
         [this.elements.dateRangeStart, this.elements.dateRangeEnd].forEach(el => {
             if (el) el.addEventListener('change', () => this.handleDateRangeFilter());
         });
 
-        // Plages de montants
         [this.elements.amountMin, this.elements.amountMax].forEach(el => {
             if (el) el.addEventListener('input', 
                 Utils.debounce(() => this.handleAmountRangeFilter(), 500)
             );
         });
 
-        // Tri
         if (this.elements.sortSelect) {
             this.elements.sortSelect.addEventListener('change', (e) => {
                 this.currentFilters.sortBy = e.target.value;
@@ -179,7 +188,6 @@ class AdvancedSearchManager {
             });
         }
 
-        // Actions de filtre
         if (this.elements.saveFilterBtn) {
             this.elements.saveFilterBtn.addEventListener('click', () => this.saveCurrentFilter());
         }
@@ -188,25 +196,21 @@ class AdvancedSearchManager {
             this.elements.clearFiltersBtn.addEventListener('click', () => this.clearAllFilters());
         }
 
-        // Raccourcis clavier
         this.setupKeyboardShortcuts();
     }
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Ctrl+F : Focus sur recherche
             if (e.ctrlKey && e.key === 'f' && !e.shiftKey) {
                 e.preventDefault();
                 this.focusSearch();
             }
             
-            // Ctrl+Shift+F : Ouvrir panneau de filtres
             if (e.ctrlKey && e.shiftKey && e.key === 'F') {
                 e.preventDefault();
                 this.toggleFilterPanel();
             }
 
-            // Escape : Fermer filtres
             if (e.key === 'Escape') {
                 this.closeFilterPanel();
             }
@@ -266,42 +270,32 @@ class AdvancedSearchManager {
 
         let filteredTransactions = this.transactionManager.getAllTransactions();
 
-        // Filtre de recherche textuelle
         if (this.currentFilters.search) {
             filteredTransactions = this.applyTextSearch(filteredTransactions, this.currentFilters.search);
         }
 
-        // Filtre par catégories
         if (this.currentFilters.categories.length > 0) {
             filteredTransactions = filteredTransactions.filter(t => 
                 this.currentFilters.categories.includes(t.category)
             );
         }
 
-        // Filtre par types
         if (this.currentFilters.types.length > 0) {
             filteredTransactions = filteredTransactions.filter(t => 
                 this.currentFilters.types.includes(t.type)
             );
         }
 
-        // Filtre par plage de dates
         if (this.currentFilters.dateRange.start || this.currentFilters.dateRange.end) {
             filteredTransactions = this.applyDateRangeFilter(filteredTransactions);
         }
 
-        // Filtre par plage de montants
         if (this.currentFilters.amountRange.min !== null || this.currentFilters.amountRange.max !== null) {
             filteredTransactions = this.applyAmountRangeFilter(filteredTransactions);
         }
 
-        // Tri
         filteredTransactions = this.sortTransactions(filteredTransactions);
-
-        // Stocker les résultats
         this.lastFilteredResults = filteredTransactions;
-
-        // Affichage des résultats
         this.displayResults(filteredTransactions);
         this.updateFilterStatus();
     }
@@ -318,22 +312,18 @@ class AdvancedSearchManager {
             ].join(' ').toLowerCase();
 
             return searchTerms.every(term => {
-                // Recherche exacte avec guillemets
                 if (term.startsWith('"') && term.endsWith('"')) {
                     return searchableText.includes(term.slice(1, -1));
                 }
                 
-                // Recherche par exclusion avec -
                 if (term.startsWith('-')) {
                     return !searchableText.includes(term.slice(1));
                 }
                 
-                // Recherche de montant avec comparateurs
                 if (term.startsWith('>') || term.startsWith('<') || term.startsWith('=')) {
                     return this.applyAmountComparison(transaction.amount, term);
                 }
                 
-                // Recherche normale
                 return searchableText.includes(term);
             });
         });
@@ -406,16 +396,13 @@ class AdvancedSearchManager {
         });
     }
 
-    // ===== AFFICHAGE DES RÉSULTATS =====
+    // ===== AFFICHAGE DES RÉSULTATS AVEC TOTAL =====
     displayResults(transactions) {
         this.updateResultsCount(transactions.length);
 
-        // Si aucun conteneur de résultats, afficher dans la liste principale
         if (!this.elements.resultsContainer) {
             console.log('📋 Mise à jour de la liste principale avec', transactions.length, 'transactions');
-            // Mettre à jour la liste principale des transactions
             if (window.calendar && window.calendar.updateTransactionsList) {
-                // Temporairement remplacer les transactions filtrées
                 const originalTransactions = window.calendar.transactions;
                 window.calendar.transactions = transactions;
                 window.calendar.updateTransactionsList();
@@ -429,11 +416,100 @@ class AdvancedSearchManager {
             return;
         }
 
-        const resultsHTML = transactions.map(transaction => this.createTransactionCard(transaction)).join('');
-        this.elements.resultsContainer.innerHTML = resultsHTML;
+        // Calculer les totaux
+        const totals = this.calculateSearchTotals(transactions);
 
-        // Ajouter les event listeners pour les actions
+        // Créer le HTML des résultats avec le total
+        const resultsHTML = transactions.map(transaction => this.createTransactionCard(transaction)).join('');
+        
+        this.elements.resultsContainer.innerHTML = `
+            ${resultsHTML}
+            <div class="search-totals-section">
+                ${this.createTotalsDisplay(totals)}
+            </div>
+        `;
+
         this.addResultsEventListeners();
+    }
+
+    // ===== CALCUL DES TOTAUX =====
+    calculateSearchTotals(transactions) {
+        const totals = {
+            totalIncome: 0,
+            totalExpenses: 0,
+            netBalance: 0,
+            count: {
+                income: 0,
+                expenses: 0,
+                total: transactions.length
+            }
+        };
+
+        transactions.forEach(transaction => {
+            if (transaction.type === 'income') {
+                totals.totalIncome += transaction.amount;
+                totals.count.income++;
+            } else {
+                totals.totalExpenses += transaction.amount;
+                totals.count.expenses++;
+            }
+        });
+
+        totals.netBalance = totals.totalIncome - totals.totalExpenses;
+        return totals;
+    }
+
+    // ===== CRÉATION DE L'AFFICHAGE DES TOTAUX =====
+    createTotalsDisplay(totals) {
+        const netBalanceClass = totals.netBalance >= 0 ? 'positive' : 'negative';
+        const netBalanceIcon = totals.netBalance >= 0 ? '📈' : '📉';
+
+        return `
+            <div class="search-totals-container">
+                <h4 class="totals-title">📊 Résumé des résultats de recherche</h4>
+                
+                <div class="totals-grid">
+                    <div class="total-card income">
+                        <div class="total-icon">💰</div>
+                        <div class="total-info">
+                            <div class="total-label">Revenus</div>
+                            <div class="total-amount">+${totals.totalIncome.toFixed(2)} €</div>
+                            <div class="total-count">${totals.count.income} transaction${totals.count.income > 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+
+                    <div class="total-card expense">
+                        <div class="total-icon">💸</div>
+                        <div class="total-info">
+                            <div class="total-label">Dépenses</div>
+                            <div class="total-amount">-${totals.totalExpenses.toFixed(2)} €</div>
+                            <div class="total-count">${totals.count.expenses} transaction${totals.count.expenses > 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+
+                    <div class="total-card balance ${netBalanceClass}">
+                        <div class="total-icon">${netBalanceIcon}</div>
+                        <div class="total-info">
+                            <div class="total-label">Solde net</div>
+                            <div class="total-amount">${totals.netBalance >= 0 ? '+' : ''}${totals.netBalance.toFixed(2)} €</div>
+                            <div class="total-count">${totals.count.total} transaction${totals.count.total > 1 ? 's' : ''} au total</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="totals-actions">
+                    <button class="btn-secondary" onclick="window.advancedSearchManager?.exportFilteredResults('csv')" title="Exporter en CSV">
+                        📊 Exporter CSV
+                    </button>
+                    <button class="btn-secondary" onclick="window.advancedSearchManager?.exportFilteredResults('json')" title="Exporter en JSON">
+                        📄 Exporter JSON
+                    </button>
+                    <button class="btn-primary" onclick="window.advancedSearchManager?.showDetailedStats()" title="Statistiques détaillées des résultats filtrés">
+                        📈 Stats des résultats
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     createTransactionCard(transaction) {
@@ -479,6 +555,196 @@ class AdvancedSearchManager {
             this.elements.resultsCount.textContent = 
                 `${count} résultat${count > 1 ? 's' : ''} sur ${totalTransactions} transaction${totalTransactions > 1 ? 's' : ''}`;
         }
+    }
+
+    // ===== STATISTIQUES DÉTAILLÉES =====
+    showDetailedStats() {
+        const transactions = this.lastFilteredResults;
+        if (!transactions || transactions.length === 0) {
+            alert('Aucune donnée à analyser');
+            return;
+        }
+
+        const stats = this.calculateDetailedStats(transactions);
+        this.displayDetailedStatsModal(stats);
+    }
+
+    calculateDetailedStats(transactions) {
+        const stats = {
+            basic: this.calculateSearchTotals(transactions),
+            byCategory: {},
+            byMonth: {},
+            averages: {
+                perTransaction: 0,
+                perDay: 0,
+                income: 0,
+                expense: 0
+            }
+        };
+
+        transactions.forEach(transaction => {
+            const category = transaction.category;
+            if (!stats.byCategory[category]) {
+                stats.byCategory[category] = {
+                    total: 0,
+                    count: 0,
+                    income: 0,
+                    expenses: 0
+                };
+            }
+
+            stats.byCategory[category].total += transaction.amount;
+            stats.byCategory[category].count++;
+
+            if (transaction.type === 'income') {
+                stats.byCategory[category].income += transaction.amount;
+            } else {
+                stats.byCategory[category].expenses += transaction.amount;
+            }
+        });
+
+        transactions.forEach(transaction => {
+            const month = transaction.date.substring(0, 7);
+            if (!stats.byMonth[month]) {
+                stats.byMonth[month] = {
+                    income: 0,
+                    expenses: 0,
+                    net: 0,
+                    count: 0
+                };
+            }
+
+            stats.byMonth[month].count++;
+            if (transaction.type === 'income') {
+                stats.byMonth[month].income += transaction.amount;
+            } else {
+                stats.byMonth[month].expenses += transaction.amount;
+            }
+            stats.byMonth[month].net = stats.byMonth[month].income - stats.byMonth[month].expenses;
+        });
+
+        if (transactions.length > 0) {
+            const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+            stats.averages.perTransaction = totalAmount / transactions.length;
+
+            const incomeTransactions = transactions.filter(t => t.type === 'income');
+            const expenseTransactions = transactions.filter(t => t.type === 'expense');
+
+            if (incomeTransactions.length > 0) {
+                stats.averages.income = incomeTransactions.reduce((sum, t) => sum + t.amount, 0) / incomeTransactions.length;
+            }
+
+            if (expenseTransactions.length > 0) {
+                stats.averages.expense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0) / expenseTransactions.length;
+            }
+
+            const dates = [...new Set(transactions.map(t => t.date))];
+            if (dates.length > 0) {
+                stats.averages.perDay = totalAmount / dates.length;
+            }
+        }
+
+        return stats;
+    }
+
+    displayDetailedStatsModal(stats) {
+        const filterCount = this.lastFilteredResults.length;
+        const totalCount = this.transactionManager?.getAllTransactions().length || 0;
+        
+        const modal = document.createElement('div');
+        modal.className = 'stats-modal-overlay';
+        modal.innerHTML = `
+            <div class="stats-modal">
+                <div class="stats-modal-header">
+                    <h3>📊 Statistiques des résultats filtrés</h3>
+                    <div class="stats-subtitle">${filterCount} transaction${filterCount > 1 ? 's' : ''} sur ${totalCount} au total</div>
+                    <button class="modal-close" onclick="this.closest('.stats-modal-overlay').remove()">×</button>
+                </div>
+                <div class="stats-modal-content">
+                    ${this.createDetailedStatsHTML(stats)}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    createDetailedStatsHTML(stats) {
+        const topCategories = Object.entries(stats.byCategory)
+            .sort(([,a], [,b]) => b.total - a.total)
+            .slice(0, 5);
+
+        const monthlyEvolution = Object.entries(stats.byMonth)
+            .sort(([a], [b]) => a.localeCompare(b));
+
+        return `
+            <div class="detailed-stats-grid">
+                <div class="stats-section">
+                    <h4>💰 Moyennes</h4>
+                    <div class="stats-list">
+                        <div class="stat-item">
+                            <span>Par transaction:</span>
+                            <span class="stat-value">${stats.averages.perTransaction.toFixed(2)} €</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Par jour:</span>
+                            <span class="stat-value">${stats.averages.perDay.toFixed(2)} €</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Revenus moyens:</span>
+                            <span class="stat-value income">${stats.averages.income.toFixed(2)} €</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Dépenses moyennes:</span>
+                            <span class="stat-value expense">${stats.averages.expense.toFixed(2)} €</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-section">
+                    <h4>📂 Top 5 Catégories</h4>
+                    <div class="stats-list">
+                        ${topCategories.map(([category, data]) => `
+                            <div class="stat-item">
+                                <span>${category}:</span>
+                                <span class="stat-value">${data.total.toFixed(2)} € (${data.count} tx)</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="stats-section full-width">
+                    <h4>📅 Évolution mensuelle</h4>
+                    <div class="monthly-stats">
+                        ${monthlyEvolution.map(([month, data]) => `
+                            <div class="monthly-stat">
+                                <div class="month-label">${this.formatMonthDisplay(month)}</div>
+                                <div class="month-values">
+                                    <div class="income">+${data.income.toFixed(2)} €</div>
+                                    <div class="expense">-${data.expenses.toFixed(2)} €</div>
+                                    <div class="net ${data.net >= 0 ? 'positive' : 'negative'}">${data.net >= 0 ? '+' : ''}${data.net.toFixed(2)} €</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    formatMonthDisplay(monthString) {
+        const [year, month] = monthString.split('-');
+        const monthNames = [
+            'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+            'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+        ];
+        return `${monthNames[parseInt(month) - 1]} ${year}`;
     }
 
     // ===== FILTRES RAPIDES =====
@@ -554,7 +820,7 @@ class AdvancedSearchManager {
     addToSearchHistory(query) {
         if (query && query.length > 2 && !this.searchHistory.includes(query)) {
             this.searchHistory.unshift(query);
-            this.searchHistory = this.searchHistory.slice(0, 10); // Limiter à 10 entrées
+            this.searchHistory = this.searchHistory.slice(0, 10);
         }
     }
 
@@ -570,7 +836,6 @@ class AdvancedSearchManager {
             sortOrder: 'desc'
         };
 
-        // Réinitialiser les inputs
         if (this.elements.searchInput) this.elements.searchInput.value = '';
         this.updateDateInputs();
         this.updateAmountInputs();
@@ -712,7 +977,6 @@ class AdvancedSearchManager {
         `).join('');
     }
 
-    // Supprimer un filtre spécifique
     removeSpecificFilter(filterType) {
         switch (filterType) {
             case 'search':
@@ -742,7 +1006,6 @@ class AdvancedSearchManager {
         this.applyFilters();
     }
 
-    // Méthode utilitaire pour formater les dates d'affichage
     formatDateForDisplay(dateString) {
         if (!dateString) return '';
         const date = new Date(dateString);
@@ -778,7 +1041,6 @@ class AdvancedSearchManager {
 
     // ===== GESTION DES ÉVÉNEMENTS SUR LES RÉSULTATS =====
     addResultsEventListeners() {
-        // Actions sur les résultats de recherche
         if (this.elements.resultsContainer) {
             this.elements.resultsContainer.addEventListener('click', (e) => {
                 const transactionId = e.target.dataset.id;
@@ -793,10 +1055,8 @@ class AdvancedSearchManager {
     }
 
     editTransaction(id) {
-        // Intégration avec le système existant d'édition
         const transaction = this.transactionManager.getTransaction(id);
         if (transaction && window.calendar) {
-            // Remplir le formulaire avec les données de la transaction
             window.calendar.elements.date.valueAsDate = new Date(transaction.date);
             window.calendar.elements.label.value = transaction.label;
             window.calendar.elements.amount.value = Math.abs(transaction.amount);
@@ -808,9 +1068,7 @@ class AdvancedSearchManager {
                 window.calendar.elements.typeExpense.checked = true;
             }
             
-            // Stocker l'ID pour l'édition
             window.calendar.editingTransactionId = id;
-            
             console.log('✏️ Transaction chargée pour édition:', transaction);
         }
     }
@@ -818,9 +1076,8 @@ class AdvancedSearchManager {
     deleteTransaction(id) {
         if (confirm('Supprimer cette transaction ?')) {
             this.transactionManager.deleteTransaction(id);
-            this.applyFilters(); // Rafraîchir les résultats
+            this.applyFilters();
             
-            // Mettre à jour l'affichage principal
             if (window.calendar) {
                 window.calendar.updateCalendar();
                 window.calendar.updateTransactionsList();
@@ -876,7 +1133,6 @@ class AdvancedSearchManager {
         if (preset) {
             this.currentFilters = { ...preset.filters };
             
-            // Mettre à jour les inputs
             if (this.elements.searchInput) this.elements.searchInput.value = this.currentFilters.search || '';
             this.updateDateInputs();
             this.updateAmountInputs();
@@ -957,7 +1213,6 @@ class AdvancedSearchManager {
     }
 
     getFilteredTransactions() {
-        // Retourne les transactions actuellement filtrées
         return this.lastFilteredResults || [];
     }
 
@@ -972,7 +1227,6 @@ class AdvancedSearchManager {
     }
 
     getMostSearchedCategories() {
-        // Analyser les catégories les plus recherchées
         const categoryUsage = {};
         this.savedFilters.forEach(filter => {
             filter.filters.categories.forEach(cat => {
@@ -986,7 +1240,6 @@ class AdvancedSearchManager {
     }
 
     getAverageResultsCount() {
-        // Calculer le nombre moyen de résultats
         return this.lastFilteredResults ? this.lastFilteredResults.length : 0;
     }
 }
@@ -1009,9 +1262,8 @@ function toggleDetailedFilters() {
     }
 }
 
-// Fonction globale pour supprimer un filtre spécifique (accessible depuis le HTML)
+// Fonction globale pour supprimer un filtre spécifique
 function removeSpecificFilter(filterType) {
-    // Cette fonction sera appelée par l'instance active du AdvancedSearchManager
     if (window.advancedSearchManager) {
         window.advancedSearchManager.removeSpecificFilter(filterType);
     }
