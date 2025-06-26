@@ -250,6 +250,11 @@ setupEventListeners() {
         if (this.elements.fixedCredit) {
             this.elements.fixedCredit.addEventListener('input', () => this.updateFixedExpenses());
         }
+		
+		if (this.elements.fixedImpot) {
+            this.elements.fixedImpot.addEventListener('input', () => this.updateFixedExpenses());
+        }
+		
         if (this.elements.fixedAutres) {
             this.elements.fixedAutres.addEventListener('input', () => this.updateFixedExpenses());
         }
