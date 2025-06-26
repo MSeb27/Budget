@@ -14,14 +14,17 @@ class AdvancedSearchManager {
         };
         this.searchHistory = [];
         this.savedFilters = this.loadSavedFilters();
+        this.lastFilteredResults = [];
         this.initializeElements();
         this.setupEventListeners();
+        this.generateCategoryOptions(); // Ajout de cette méthode manquante
     }
 
     // ===== INITIALISATION =====
     initializeElements() {
         this.elements = {
-            searchInput: document.getElementById('advanced-search-input'),
+            // Correction: utiliser l'ID correct du champ de recherche
+            searchInput: document.getElementById('search-input') || document.getElementById('advanced-search-input'),
             filterPanel: document.getElementById('filter-panel'),
             categoryFilters: document.getElementById('category-filters'),
             typeFilters: document.getElementById('type-filters'),
@@ -38,6 +41,90 @@ class AdvancedSearchManager {
             filterPresets: document.getElementById('filter-presets'),
             quickFilters: document.getElementById('quick-filters')
         };
+
+        // Debug: afficher les éléments trouvés
+        console.log('🔍 Éléments de recherche initialisés:', {
+            searchInput: !!this.elements.searchInput,
+            filterPanel: !!this.elements.filterPanel,
+            categoryFilters: !!this.elements.categoryFilters,
+            quickFilters: !!this.elements.quickFilters
+        });
+    }
+
+    // ===== GÉNÉRATION DES OPTIONS DE CATÉGORIES =====
+    generateCategoryOptions() {
+        if (!this.elements.categoryFilters) {
+            console.warn('⚠️ Élément category-filters introuvable');
+            return;
+        }
+
+        try {
+            // Récupérer toutes les catégories utilisées
+            const categories = this.getAllCategories();
+            
+            if (categories.length === 0) {
+                console.warn('⚠️ Aucune catégorie trouvée');
+                return;
+            }
+
+            // Générer les checkboxes pour les catégories
+            const categoryHTML = categories.map(category => `
+                <label class="filter-checkbox">
+                    <input type="checkbox" value="${category}" />
+                    <span>${this.getCategoryIcon(category)} ${category}</span>
+                </label>
+            `).join('');
+
+            this.elements.categoryFilters.innerHTML = categoryHTML;
+            console.log('✅ Options de catégories générées:', categories.length);
+
+        } catch (error) {
+            console.error('❌ Erreur lors de la génération des catégories:', error);
+        }
+    }
+
+    // Récupérer toutes les catégories
+    getAllCategories() {
+        try {
+            if (!this.transactionManager) {
+                console.warn('⚠️ TransactionManager non disponible');
+                return [];
+            }
+
+            const transactions = this.transactionManager.getAllTransactions();
+            const categories = [...new Set(transactions.map(t => t.category))].filter(Boolean);
+            return categories.sort();
+        } catch (error) {
+            console.error('❌ Erreur lors de la récupération des catégories:', error);
+            return [];
+        }
+    }
+
+    // Obtenir l'icône pour une catégorie
+    getCategoryIcon(category) {
+        const icons = {
+            'Alimentation': '🍕',
+            'Assurance maison': '🏠🛡️',
+            'Assurance voiture': '🚗🛡️',
+            'Cigarettes': '🚬',
+            'EDF-GDF': '⚡',
+            'Essence': '⛽',
+            'Impôt': '🏛️',
+            'Internet': '🌐',
+            'Internet Outils': '🔧',
+            'Logement': '🏠',
+            'Loisirs': '🎬',
+            'Loyer': '🏠',
+            'Prêt': '💳',
+            'Remboursement crédit': '🏦',
+            'Retrait DAB': '🏧',
+            'Salaire': '💼',
+            'Santé': '🏥',
+            'Transport': '🚗',
+            'Vêtements': '👕',
+            'Autres': '📦'
+        };
+        return icons[category] || '📂';
     }
 
     setupEventListeners() {
@@ -46,6 +133,9 @@ class AdvancedSearchManager {
             this.elements.searchInput.addEventListener('input', 
                 Utils.debounce((e) => this.handleSearch(e.target.value), 300)
             );
+            console.log('✅ Listener de recherche configuré');
+        } else {
+            console.warn('⚠️ Élément de recherche introuvable');
         }
 
         // Filtres de catégorie
@@ -169,6 +259,11 @@ class AdvancedSearchManager {
 
     // ===== APPLICATION DES FILTRES =====
     applyFilters() {
+        if (!this.transactionManager) {
+            console.warn('⚠️ TransactionManager non disponible pour l\'application des filtres');
+            return;
+        }
+
         let filteredTransactions = this.transactionManager.getAllTransactions();
 
         // Filtre de recherche textuelle
@@ -202,6 +297,9 @@ class AdvancedSearchManager {
 
         // Tri
         filteredTransactions = this.sortTransactions(filteredTransactions);
+
+        // Stocker les résultats
+        this.lastFilteredResults = filteredTransactions;
 
         // Affichage des résultats
         this.displayResults(filteredTransactions);
@@ -241,78 +339,90 @@ class AdvancedSearchManager {
         });
     }
 
-    applyAmountComparison(amount, term) {
-        const operator = term.charAt(0);
-        const value = parseFloat(term.slice(1));
-        
-        if (isNaN(value)) return true;
-        
-        switch (operator) {
-            case '>': return amount > value;
-            case '<': return amount < value;
-            case '=': return Math.abs(amount - value) < 0.01;
-            default: return true;
-        }
-    }
-
     applyDateRangeFilter(transactions) {
-        const start = this.currentFilters.dateRange.start;
-        const end = this.currentFilters.dateRange.end;
+        return transactions.filter(transaction => {
+            const transactionDate = new Date(transaction.date);
+            const startDate = this.currentFilters.dateRange.start ? new Date(this.currentFilters.dateRange.start) : null;
+            const endDate = this.currentFilters.dateRange.end ? new Date(this.currentFilters.dateRange.end) : null;
 
-        return transactions.filter(t => {
-            if (start && t.date < start) return false;
-            if (end && t.date > end) return false;
+            if (startDate && transactionDate < startDate) return false;
+            if (endDate && transactionDate > endDate) return false;
+            
             return true;
         });
     }
 
     applyAmountRangeFilter(transactions) {
-        const min = this.currentFilters.amountRange.min;
-        const max = this.currentFilters.amountRange.max;
+        return transactions.filter(transaction => {
+            const amount = Math.abs(transaction.amount);
+            const min = this.currentFilters.amountRange.min;
+            const max = this.currentFilters.amountRange.max;
 
-        return transactions.filter(t => {
-            if (min !== null && t.amount < min) return false;
-            if (max !== null && t.amount > max) return false;
+            if (min !== null && amount < min) return false;
+            if (max !== null && amount > max) return false;
+            
             return true;
         });
     }
 
+    applyAmountComparison(amount, term) {
+        const operator = term.charAt(0);
+        const value = parseFloat(term.slice(1));
+        
+        if (isNaN(value)) return false;
+        
+        const comparison = Math.abs(amount);
+        
+        switch (operator) {
+            case '>': return comparison > value;
+            case '<': return comparison < value;
+            case '=': return Math.abs(comparison - value) < 0.01;
+            default: return comparison === value;
+        }
+    }
+
     sortTransactions(transactions) {
-        const sortBy = this.currentFilters.sortBy;
-        const order = this.currentFilters.sortOrder;
-
-        return transactions.sort((a, b) => {
+        return [...transactions].sort((a, b) => {
             let comparison = 0;
-
-            switch (sortBy) {
+            
+            switch (this.currentFilters.sortBy) {
                 case 'date':
                     comparison = new Date(a.date) - new Date(b.date);
                     break;
                 case 'amount':
-                    comparison = a.amount - b.amount;
-                    break;
-                case 'label':
-                    comparison = a.label.localeCompare(b.label);
+                    comparison = Math.abs(a.amount) - Math.abs(b.amount);
                     break;
                 case 'category':
                     comparison = a.category.localeCompare(b.category);
                     break;
-                case 'type':
-                    comparison = a.type.localeCompare(b.type);
+                case 'label':
+                    comparison = a.label.localeCompare(b.label);
                     break;
                 default:
-                    comparison = 0;
+                    comparison = new Date(a.date) - new Date(b.date);
             }
-
-            return order === 'desc' ? -comparison : comparison;
+            
+            return this.currentFilters.sortOrder === 'desc' ? -comparison : comparison;
         });
     }
 
     // ===== AFFICHAGE DES RÉSULTATS =====
     displayResults(transactions) {
-        if (!this.elements.resultsContainer) return;
-
         this.updateResultsCount(transactions.length);
+
+        // Si aucun conteneur de résultats, afficher dans la liste principale
+        if (!this.elements.resultsContainer) {
+            console.log('📋 Mise à jour de la liste principale avec', transactions.length, 'transactions');
+            // Mettre à jour la liste principale des transactions
+            if (window.calendar && window.calendar.updateTransactionsList) {
+                // Temporairement remplacer les transactions filtrées
+                const originalTransactions = window.calendar.transactions;
+                window.calendar.transactions = transactions;
+                window.calendar.updateTransactionsList();
+                window.calendar.transactions = originalTransactions;
+            }
+            return;
+        }
 
         if (transactions.length === 0) {
             this.displayNoResults();
@@ -333,56 +443,39 @@ class AdvancedSearchManager {
         const typeIcon = transaction.type === 'income' ? '💰' : '💸';
 
         return `
-            <div class="search-result-card ${typeClass}" data-transaction-id="${transaction.id}">
-                <div class="result-header">
-                    <div class="result-date">${date}</div>
-                    <div class="result-type">${typeIcon}</div>
+            <div class="transaction-result ${typeClass}" data-id="${transaction.id}">
+                <div class="transaction-icon">${typeIcon}</div>
+                <div class="transaction-info">
+                    <div class="transaction-label">${transaction.label}</div>
+                    <div class="transaction-category">${this.getCategoryIcon(transaction.category)} ${transaction.category}</div>
+                    <div class="transaction-date">${date}</div>
                 </div>
-                <div class="result-content">
-                    <div class="result-label">${this.highlightText(transaction.label)}</div>
-                    <div class="result-category">${transaction.category}</div>
-                </div>
-                <div class="result-amount ${typeClass}">${amount}</div>
-                <div class="result-actions">
-                    <button class="btn-edit" data-id="${transaction.id}">✏️</button>
-                    <button class="btn-delete" data-id="${transaction.id}">🗑️</button>
+                <div class="transaction-amount ${typeClass}">${amount}</div>
+                <div class="transaction-actions">
+                    <button class="btn-edit" data-id="${transaction.id}" title="Modifier">✏️</button>
+                    <button class="btn-delete" data-id="${transaction.id}" title="Supprimer">🗑️</button>
                 </div>
             </div>
         `;
-    }
-
-    highlightText(text) {
-        if (!this.currentFilters.search) return text;
-        
-        const query = this.currentFilters.search;
-        const regex = new RegExp(`(${query})`, 'gi');
-        return text.replace(regex, '<mark>$1</mark>');
     }
 
     displayNoResults() {
-        this.elements.resultsContainer.innerHTML = `
-            <div class="no-search-results">
-                <div class="no-results-icon">🔍</div>
-                <div class="no-results-title">Aucun résultat trouvé</div>
-                <div class="no-results-subtitle">
-                    Essayez de modifier vos critères de recherche
+        if (this.elements.resultsContainer) {
+            this.elements.resultsContainer.innerHTML = `
+                <div class="no-results">
+                    <div class="no-results-icon">🔍</div>
+                    <div class="no-results-message">Aucune transaction trouvée</div>
+                    <div class="no-results-suggestion">
+                        Essayez de modifier vos critères de recherche
+                    </div>
                 </div>
-                <div class="search-tips">
-                    <h4>💡 Astuces de recherche :</h4>
-                    <ul>
-                        <li><code>"texte exact"</code> - Recherche exacte</li>
-                        <li><code>-mot</code> - Exclure un mot</li>
-                        <li><code>>50</code> - Montant supérieur à 50€</li>
-                        <li><code><100</code> - Montant inférieur à 100€</li>
-                    </ul>
-                </div>
-            </div>
-        `;
+            `;
+        }
     }
 
     updateResultsCount(count) {
         if (this.elements.resultsCount) {
-            const totalTransactions = this.transactionManager.getAllTransactions().length;
+            const totalTransactions = this.transactionManager?.getAllTransactions().length || 0;
             this.elements.resultsCount.textContent = 
                 `${count} résultat${count > 1 ? 's' : ''} sur ${totalTransactions} transaction${totalTransactions > 1 ? 's' : ''}`;
         }
@@ -410,6 +503,10 @@ class AdvancedSearchManager {
                     if (filter) filter.action();
                 }
             });
+
+            console.log('✅ Filtres rapides créés');
+        } else {
+            console.warn('⚠️ Élément quick-filters introuvable');
         }
     }
 
@@ -436,12 +533,8 @@ class AdvancedSearchManager {
     }
 
     filterLargeAmounts() {
-        const transactions = this.transactionManager.getAllTransactions();
-        const amounts = transactions.map(t => t.amount).sort((a, b) => b - a);
-        const threshold = amounts[Math.floor(amounts.length * 0.1)]; // Top 10%
-        
-        this.currentFilters.amountRange.min = threshold;
-        if (this.elements.amountMin) this.elements.amountMin.value = threshold;
+        this.currentFilters.amountRange.min = 100;
+        this.updateAmountInputs();
         this.applyFilters();
     }
 
@@ -457,64 +550,14 @@ class AdvancedSearchManager {
         this.applyFilters();
     }
 
-    // ===== GESTION DES FILTRES SAUVEGARDÉS =====
-    saveCurrentFilter() {
-        const filterName = prompt('Nom du filtre :');
-        if (!filterName) return;
-
-        const filter = {
-            name: filterName,
-            filters: { ...this.currentFilters },
-            createdAt: new Date().toISOString()
-        };
-
-        this.savedFilters.push(filter);
-        this.savePersistentFilters();
-        this.updateFilterPresets();
-        Utils.showNotification(`Filtre "${filterName}" sauvegardé`, 'success');
+    // ===== GESTION DES HISTORIQUES ET SAUVEGARDES =====
+    addToSearchHistory(query) {
+        if (query && query.length > 2 && !this.searchHistory.includes(query)) {
+            this.searchHistory.unshift(query);
+            this.searchHistory = this.searchHistory.slice(0, 10); // Limiter à 10 entrées
+        }
     }
 
-    loadSavedFilter(filterName) {
-        const savedFilter = this.savedFilters.find(f => f.name === filterName);
-        if (!savedFilter) return;
-
-        this.currentFilters = { ...savedFilter.filters };
-        this.updateAllFilterInputs();
-        this.applyFilters();
-    }
-
-    deleteSavedFilter(filterName) {
-        this.savedFilters = this.savedFilters.filter(f => f.name !== filterName);
-        this.savePersistentFilters();
-        this.updateFilterPresets();
-    }
-
-    updateFilterPresets() {
-        if (!this.elements.filterPresets) return;
-
-        this.elements.filterPresets.innerHTML = this.savedFilters.map(filter => `
-            <div class="filter-preset">
-                <button class="preset-load" data-filter="${filter.name}">
-                    ${filter.name}
-                </button>
-                <button class="preset-delete" data-filter="${filter.name}">×</button>
-            </div>
-        `).join('');
-
-        // Event listeners pour les presets
-        this.elements.filterPresets.addEventListener('click', (e) => {
-            const filterName = e.target.dataset.filter;
-            if (e.target.classList.contains('preset-load')) {
-                this.loadSavedFilter(filterName);
-            } else if (e.target.classList.contains('preset-delete')) {
-                if (confirm(`Supprimer le filtre "${filterName}" ?`)) {
-                    this.deleteSavedFilter(filterName);
-                }
-            }
-        });
-    }
-
-    // ===== UTILS ET HELPERS =====
     clearAllFilters() {
         this.currentFilters = {
             search: '',
@@ -527,20 +570,17 @@ class AdvancedSearchManager {
             sortOrder: 'desc'
         };
 
-        this.updateAllFilterInputs();
-        this.applyFilters();
-    }
-
-    updateAllFilterInputs() {
-        if (this.elements.searchInput) this.elements.searchInput.value = this.currentFilters.search;
+        // Réinitialiser les inputs
+        if (this.elements.searchInput) this.elements.searchInput.value = '';
         this.updateDateInputs();
         this.updateAmountInputs();
         this.updateCategoryCheckboxes();
         this.updateTypeCheckboxes();
-        if (this.elements.sortSelect) this.elements.sortSelect.value = this.currentFilters.sortBy;
-        if (this.elements.sortOrder) this.elements.sortOrder.value = this.currentFilters.sortOrder;
+
+        this.applyFilters();
     }
 
+    // ===== MISE À JOUR DES INPUTS =====
     updateDateInputs() {
         if (this.elements.dateRangeStart) this.elements.dateRangeStart.value = this.currentFilters.dateRange.start || '';
         if (this.elements.dateRangeEnd) this.elements.dateRangeEnd.value = this.currentFilters.dateRange.end || '';
@@ -565,38 +605,243 @@ class AdvancedSearchManager {
         });
     }
 
+    // ===== STATUT DES FILTRES =====
     updateFilterStatus() {
         const activeFilters = this.getActiveFiltersCount();
         const statusElement = document.getElementById('filter-status');
         
         if (statusElement) {
-            statusElement.textContent = activeFilters > 0 ? `${activeFilters} filtre(s) actif(s)` : '';
-            statusElement.className = activeFilters > 0 ? 'filters-active' : 'filters-inactive';
+            if (activeFilters > 0) {
+                const activeDetails = this.getActiveFiltersDetails();
+                statusElement.innerHTML = `
+                    <span class="filter-count" onclick="toggleDetailedFilters()">${activeFilters} filtre(s) actif(s) ▼</span>
+                    <div class="detailed-filters" id="detailed-filters" style="display: none;">
+                        ${this.generateDetailedFiltersHTML(activeDetails)}
+                    </div>
+                `;
+                statusElement.className = 'filter-status filters-active';
+            } else {
+                statusElement.textContent = '';
+                statusElement.className = 'filter-status filters-inactive';
+            }
         }
     }
 
     getActiveFiltersCount() {
         let count = 0;
+        
         if (this.currentFilters.search) count++;
         if (this.currentFilters.categories.length > 0) count++;
         if (this.currentFilters.types.length > 0) count++;
         if (this.currentFilters.dateRange.start || this.currentFilters.dateRange.end) count++;
         if (this.currentFilters.amountRange.min !== null || this.currentFilters.amountRange.max !== null) count++;
+        
         return count;
     }
 
-    addToSearchHistory(query) {
-        if (!query || this.searchHistory.includes(query)) return;
-        
-        this.searchHistory.unshift(query);
-        if (this.searchHistory.length > 10) {
-            this.searchHistory = this.searchHistory.slice(0, 10);
+    getActiveFiltersDetails() {
+        const activeFilters = [];
+
+        if (this.currentFilters.search) {
+            activeFilters.push({
+                type: 'search',
+                label: 'Recherche',
+                value: `"${this.currentFilters.search}"`,
+                icon: '🔍'
+            });
         }
-        
-        localStorage.setItem('budget-search-history', JSON.stringify(this.searchHistory));
+
+        if (this.currentFilters.categories.length > 0) {
+            activeFilters.push({
+                type: 'categories',
+                label: 'Catégories',
+                value: this.currentFilters.categories.join(', '),
+                icon: '📂'
+            });
+        }
+
+        if (this.currentFilters.types.length > 0) {
+            const typeLabels = this.currentFilters.types.map(type => 
+                type === 'income' ? 'Revenus' : 'Dépenses'
+            );
+            activeFilters.push({
+                type: 'types',
+                label: 'Types',
+                value: typeLabels.join(', '),
+                icon: '💰'
+            });
+        }
+
+        if (this.currentFilters.dateRange.start || this.currentFilters.dateRange.end) {
+            const start = this.currentFilters.dateRange.start ? this.formatDateForDisplay(this.currentFilters.dateRange.start) : '';
+            const end = this.currentFilters.dateRange.end ? this.formatDateForDisplay(this.currentFilters.dateRange.end) : '';
+            const dateRange = start && end ? `${start} - ${end}` : start || end;
+            
+            activeFilters.push({
+                type: 'dateRange',
+                label: 'Période',
+                value: dateRange,
+                icon: '📅'
+            });
+        }
+
+        if (this.currentFilters.amountRange.min !== null || this.currentFilters.amountRange.max !== null) {
+            const min = this.currentFilters.amountRange.min !== null ? `${this.currentFilters.amountRange.min}€` : '';
+            const max = this.currentFilters.amountRange.max !== null ? `${this.currentFilters.amountRange.max}€` : '';
+            const amountRange = min && max ? `${min} - ${max}` : min || max;
+            
+            activeFilters.push({
+                type: 'amountRange',
+                label: 'Montant',
+                value: amountRange,
+                icon: '💶'
+            });
+        }
+
+        return activeFilters;
     }
 
-    // ===== PERSISTANCE =====
+    generateDetailedFiltersHTML(activeFilters) {
+        return activeFilters.map(filter => `
+            <div class="filter-detail-item">
+                <span class="filter-icon">${filter.icon}</span>
+                <span class="filter-label">${filter.label}:</span>
+                <span class="filter-value">${filter.value}</span>
+                <button class="filter-remove-btn" onclick="removeSpecificFilter('${filter.type}')" title="Supprimer ce filtre">×</button>
+            </div>
+        `).join('');
+    }
+
+    // Supprimer un filtre spécifique
+    removeSpecificFilter(filterType) {
+        switch (filterType) {
+            case 'search':
+                this.currentFilters.search = '';
+                if (this.elements.searchInput) {
+                    this.elements.searchInput.value = '';
+                }
+                break;
+            case 'categories':
+                this.currentFilters.categories = [];
+                this.updateCategoryCheckboxes();
+                break;
+            case 'types':
+                this.currentFilters.types = [];
+                this.updateTypeCheckboxes();
+                break;
+            case 'dateRange':
+                this.currentFilters.dateRange = { start: null, end: null };
+                this.updateDateInputs();
+                break;
+            case 'amountRange':
+                this.currentFilters.amountRange = { min: null, max: null };
+                this.updateAmountInputs();
+                break;
+        }
+        
+        this.applyFilters();
+    }
+
+    // Méthode utilitaire pour formater les dates d'affichage
+    formatDateForDisplay(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    }
+
+    // ===== INTERFACE =====
+    focusSearch() {
+        if (this.elements.searchInput) {
+            this.elements.searchInput.focus();
+            this.elements.searchInput.select();
+        }
+    }
+
+    toggleFilterPanel() {
+        if (this.elements.filterPanel) {
+            this.elements.filterPanel.classList.toggle('visible');
+            console.log('🔄 Panneau de filtres basculé:', this.elements.filterPanel.classList.contains('visible'));
+        } else {
+            console.warn('⚠️ Panneau de filtres introuvable');
+        }
+    }
+
+    closeFilterPanel() {
+        if (this.elements.filterPanel) {
+            this.elements.filterPanel.classList.remove('visible');
+        }
+    }
+
+    // ===== GESTION DES ÉVÉNEMENTS SUR LES RÉSULTATS =====
+    addResultsEventListeners() {
+        // Actions sur les résultats de recherche
+        if (this.elements.resultsContainer) {
+            this.elements.resultsContainer.addEventListener('click', (e) => {
+                const transactionId = e.target.dataset.id;
+                
+                if (e.target.classList.contains('btn-edit')) {
+                    this.editTransaction(parseInt(transactionId));
+                } else if (e.target.classList.contains('btn-delete')) {
+                    this.deleteTransaction(parseInt(transactionId));
+                }
+            });
+        }
+    }
+
+    editTransaction(id) {
+        // Intégration avec le système existant d'édition
+        const transaction = this.transactionManager.getTransaction(id);
+        if (transaction && window.calendar) {
+            // Remplir le formulaire avec les données de la transaction
+            window.calendar.elements.date.valueAsDate = new Date(transaction.date);
+            window.calendar.elements.label.value = transaction.label;
+            window.calendar.elements.amount.value = Math.abs(transaction.amount);
+            window.calendar.elements.category.value = transaction.category;
+            
+            if (transaction.type === 'income') {
+                window.calendar.elements.typeIncome.checked = true;
+            } else {
+                window.calendar.elements.typeExpense.checked = true;
+            }
+            
+            // Stocker l'ID pour l'édition
+            window.calendar.editingTransactionId = id;
+            
+            console.log('✏️ Transaction chargée pour édition:', transaction);
+        }
+    }
+
+    deleteTransaction(id) {
+        if (confirm('Supprimer cette transaction ?')) {
+            this.transactionManager.deleteTransaction(id);
+            this.applyFilters(); // Rafraîchir les résultats
+            
+            // Mettre à jour l'affichage principal
+            if (window.calendar) {
+                window.calendar.updateCalendar();
+                window.calendar.updateTransactionsList();
+            }
+        }
+    }
+
+    // ===== GESTION DES FILTRES SAUVEGARDÉS =====
+    saveCurrentFilter() {
+        const filterName = prompt('Nom du filtre sauvegardé:');
+        if (filterName) {
+            this.savedFilters.push({
+                name: filterName,
+                filters: { ...this.currentFilters },
+                createdAt: new Date().toISOString()
+            });
+            this.savePersistentFilters();
+            this.updateFilterPresets();
+        }
+    }
+
     loadSavedFilters() {
         try {
             const saved = localStorage.getItem('budget-saved-filters');
@@ -615,53 +860,56 @@ class AdvancedSearchManager {
         }
     }
 
-    // ===== INTERFACE =====
-    focusSearch() {
-        if (this.elements.searchInput) {
-            this.elements.searchInput.focus();
-            this.elements.searchInput.select();
-        }
+    updateFilterPresets() {
+        if (!this.elements.filterPresets) return;
+
+        this.elements.filterPresets.innerHTML = this.savedFilters.map(filter => `
+            <div class="filter-preset">
+                <button class="preset-load" onclick="window.advancedSearchManager.loadPreset('${filter.name}')">${filter.name}</button>
+                <button class="preset-delete" onclick="window.advancedSearchManager.deletePreset('${filter.name}')">×</button>
+            </div>
+        `).join('');
     }
 
-    toggleFilterPanel() {
-        if (this.elements.filterPanel) {
-            this.elements.filterPanel.classList.toggle('visible');
-        }
-    }
-
-    closeFilterPanel() {
-        if (this.elements.filterPanel) {
-            this.elements.filterPanel.classList.remove('visible');
-        }
-    }
-
-    addResultsEventListeners() {
-        // Actions sur les résultats de recherche
-        this.elements.resultsContainer.addEventListener('click', (e) => {
-            const transactionId = e.target.dataset.id;
+    loadPreset(name) {
+        const preset = this.savedFilters.find(f => f.name === name);
+        if (preset) {
+            this.currentFilters = { ...preset.filters };
             
-            if (e.target.classList.contains('btn-edit')) {
-                this.editTransaction(parseInt(transactionId));
-            } else if (e.target.classList.contains('btn-delete')) {
-                this.deleteTransaction(parseInt(transactionId));
-            }
+            // Mettre à jour les inputs
+            if (this.elements.searchInput) this.elements.searchInput.value = this.currentFilters.search || '';
+            this.updateDateInputs();
+            this.updateAmountInputs();
+            this.updateCategoryCheckboxes();
+            this.updateTypeCheckboxes();
+            
+            this.applyFilters();
+        }
+    }
+
+    deletePreset(name) {
+        if (confirm(`Supprimer le filtre "${name}" ?`)) {
+            this.savedFilters = this.savedFilters.filter(f => f.name !== name);
+            this.savePersistentFilters();
+            this.updateFilterPresets();
+        }
+    }
+
+    // ===== MISE EN ÉVIDENCE DES TERMES DE RECHERCHE =====
+    highlightSearchTerms(query) {
+        if (!query || !this.elements.resultsContainer) return;
+
+        const terms = query.toLowerCase().split(' ').filter(term => term.length > 2);
+        const elements = this.elements.resultsContainer.querySelectorAll('.transaction-label, .transaction-category');
+
+        elements.forEach(element => {
+            let text = element.textContent;
+            terms.forEach(term => {
+                const regex = new RegExp(`(${term})`, 'gi');
+                text = text.replace(regex, '<mark>$1</mark>');
+            });
+            element.innerHTML = text;
         });
-    }
-
-    editTransaction(id) {
-        // Intégration avec le système existant d'édition
-        const transaction = this.transactionManager.getTransaction(id);
-        if (transaction) {
-            // Ouvrir le modal d'édition ou remplir le formulaire
-            console.log('Édition transaction:', transaction);
-        }
-    }
-
-    deleteTransaction(id) {
-        if (confirm('Supprimer cette transaction ?')) {
-            this.transactionManager.deleteTransaction(id);
-            this.applyFilters(); // Rafraîchir les résultats
-        }
     }
 
     // ===== EXPORT DES RÉSULTATS =====
@@ -698,6 +946,16 @@ class AdvancedSearchManager {
         link.click();
     }
 
+    exportToJSON(transactions) {
+        const jsonContent = JSON.stringify(transactions, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `transactions_filtered_${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+    }
+
     getFilteredTransactions() {
         // Retourne les transactions actuellement filtrées
         return this.lastFilteredResults || [];
@@ -725,5 +983,36 @@ class AdvancedSearchManager {
         return Object.entries(categoryUsage)
             .sort(([,a], [,b]) => b - a)
             .slice(0, 5);
+    }
+
+    getAverageResultsCount() {
+        // Calculer le nombre moyen de résultats
+        return this.lastFilteredResults ? this.lastFilteredResults.length : 0;
+    }
+}
+
+// Fonction globale pour basculer l'affichage détaillé
+function toggleDetailedFilters() {
+    const detailedElement = document.getElementById('detailed-filters');
+    const toggleIcon = document.querySelector('.filter-count');
+    
+    if (detailedElement) {
+        const isVisible = detailedElement.style.display !== 'none';
+        detailedElement.style.display = isVisible ? 'none' : 'block';
+        
+        if (toggleIcon) {
+            toggleIcon.innerHTML = toggleIcon.innerHTML.replace(
+                isVisible ? '▲' : '▼',
+                isVisible ? '▼' : '▲'
+            );
+        }
+    }
+}
+
+// Fonction globale pour supprimer un filtre spécifique (accessible depuis le HTML)
+function removeSpecificFilter(filterType) {
+    // Cette fonction sera appelée par l'instance active du AdvancedSearchManager
+    if (window.advancedSearchManager) {
+        window.advancedSearchManager.removeSpecificFilter(filterType);
     }
 }

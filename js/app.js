@@ -98,6 +98,7 @@ class BudgetCalendar {
 
             // Initialiser la recherche avancée
             this.advancedSearch = new AdvancedSearchManager(this.transactionManager);
+			window.advancedSearchManager = this.advancedSearch;
             this.advancedSearch.createQuickFilters();
 
             console.log('✅ Tous les gestionnaires initialisés avec succès');

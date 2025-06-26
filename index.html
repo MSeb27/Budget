@@ -225,7 +225,7 @@
                         <!-- Les filtres rapides seront générés par JavaScript -->
                     </div>
                     <div class="filter-toggle">
-                        <button class="btn-primary" onclick="toggleFilterPanel()">📊 Filtres Avancés</button>
+                        <button class="btn-primary" onclick="window.advancedSearchManager?.toggleFilterPanel()">📊 Filtres Avancés</button>
                         <span id="filter-status" class="filter-status filters-inactive"></span>
                     </div>
                 </div>
@@ -254,20 +254,20 @@
                         </div>
 
                         <div class="filter-group">
-                            <h4>📅 Période</h4>
-                            <div class="filter-range">
-                                <input type="date" id="date-range-start" placeholder="Date début" />
-                                <span>à</span>
-                                <input type="date" id="date-range-end" placeholder="Date fin" />
-                            </div>
-                        </div>
+							<h4>📅 Période</h4>
+							<div class="filter-range">
+								<input type="date" id="date-range-start" placeholder="Date début" />
+								<span>à</span>
+								<input type="date" id="date-range-end" placeholder="Date fin" />
+							</div>
+						</div>
 
                         <div class="filter-group">
                             <h4>💵 Montant</h4>
                             <div class="filter-range">
-                                <input type="number" id="amount-min" placeholder="Min (€)" step="0.01" />
+                                <input type="number" id="amount-min" placeholder="Min (€)" step="1" />
                                 <span>à</span>
-                                <input type="number" id="amount-max" placeholder="Max (€)" step="0.01" />
+                                <input type="number" id="amount-max" placeholder="Max (€)" step="1" />
                             </div>
                         </div>
 
@@ -500,5 +500,31 @@
 <script src="js/themes.js"></script> 
 <!-- 3. Script principal SANS type="module" --> 
 <script src="js/app.js"></script>
+
+<script>
+function toggleDetailedFilters() {
+    const detailedElement = document.getElementById('detailed-filters');
+    const toggleElement = document.querySelector('.filter-count');
+    
+    if (detailedElement && toggleElement) {
+        const isVisible = detailedElement.style.display !== 'none';
+        detailedElement.style.display = isVisible ? 'none' : 'block';
+        
+        const currentText = toggleElement.textContent;
+        if (isVisible) {
+            toggleElement.textContent = currentText.replace('▲', '▼');
+        } else {
+            toggleElement.textContent = currentText.replace('▼', '▲');
+        }
+    }
+}
+
+function removeSpecificFilter(filterType) {
+    if (window.advancedSearchManager) {
+        window.advancedSearchManager.removeSpecificFilter(filterType);
+    }
+}
+</script>
+
 </body>
 </html>

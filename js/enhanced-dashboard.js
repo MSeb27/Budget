@@ -87,50 +87,7 @@ class EnhancedDashboard {
         this.setupFullscreenModal();
     }
 
-    setupFullscreenModal() {
-        const modal = document.createElement('div');
-        modal.id = 'fullscreen-chart-modal';
-        modal.className = 'fullscreen-modal';
-        modal.innerHTML = `
-            <div class="fullscreen-content">
-                <div class="fullscreen-header">
-                    <h3 id="fullscreen-chart-title">Graphique</h3>
-                    <div class="fullscreen-controls">
-                        <button class="btn-fullscreen-control" id="chart-settings">⚙️</button>
-                        <button class="btn-fullscreen-control" id="export-chart">💾</button>
-                        <button class="btn-fullscreen-control" id="close-fullscreen">✕</button>
-                    </div>
-                </div>
-                <div class="fullscreen-chart-container" id="fullscreen-chart-container">
-                    <!-- Le graphique plein écran sera inséré ici -->
-                </div>
-                <div class="fullscreen-toolbar">
-                    <div class="chart-controls">
-                        <button class="chart-control-btn" data-action="zoom-in">🔍+</button>
-                        <button class="chart-control-btn" data-action="zoom-out">🔍-</button>
-                        <button class="chart-control-btn" data-action="reset-zoom">🔄</button>
-                        <button class="chart-control-btn" data-action="toggle-animation">🎬</button>
-                    </div>
-                    <div class="chart-options">
-                        <select id="chart-time-range">
-                            <option value="1m">1 mois</option>
-                            <option value="3m">3 mois</option>
-                            <option value="6m">6 mois</option>
-                            <option value="1y" selected>1 an</option>
-                            <option value="all">Tout</option>
-                        </select>
-                        <select id="chart-type-selector">
-                            <option value="line">Ligne</option>
-                            <option value="bar">Barres</option>
-                            <option value="area">Aires</option>
-                            <option value="pie">Camembert</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
+
 
     initializeWidgets() {
         const widgetConfigs = [
@@ -243,6 +200,8 @@ class EnhancedDashboard {
         }
     }
 
+// EVENEMENT Dashboard
+
     setupWidgetEventListeners(widget, config) {
         // Plein écran pour graphiques
         const fullscreenBtn = widget.querySelector('.widget-fullscreen');
@@ -269,56 +228,53 @@ class EnhancedDashboard {
         }
     }
 
-    setupEventListeners() {
-        // Contrôles du dashboard
-        document.getElementById('refresh-dashboard')?.addEventListener('click', () => {
+setupEventListeners() {
+    // Contrôles du dashboard
+    const refreshBtn = document.getElementById('refresh-dashboard');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
             this.refreshAllWidgets();
         });
+    }
 
-        document.getElementById('customize-dashboard')?.addEventListener('click', () => {
+    const customizeBtn = document.getElementById('customize-dashboard');
+    if (customizeBtn) {
+        customizeBtn.addEventListener('click', () => {
             this.openCustomizationPanel();
         });
+    }
 
-        document.getElementById('export-dashboard')?.addEventListener('click', () => {
+    const exportBtn = document.getElementById('export-dashboard');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
             this.exportDashboard();
         });
-
-        // Modal plein écran
-        document.getElementById('close-fullscreen')?.addEventListener('click', () => {
-            this.closeFullscreen();
-        });
-
-        document.getElementById('export-chart')?.addEventListener('click', () => {
-            this.exportFullscreenChart();
-        });
-
-        // Contrôles de graphique plein écran
-        document.querySelectorAll('.chart-control-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.handleChartControl(e.target.dataset.action);
-            });
-        });
-
-        // Sélecteurs de plein écran
-        document.getElementById('chart-time-range')?.addEventListener('change', (e) => {
-            this.updateFullscreenChart({ timeRange: e.target.value });
-        });
-
-        document.getElementById('chart-type-selector')?.addEventListener('change', (e) => {
-            this.updateFullscreenChart({ chartType: e.target.value });
-        });
-
-        // Raccourcis clavier
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.fullscreenChart) {
-                this.closeFullscreen();
-            }
-            if (e.key === 'F11' && this.fullscreenChart) {
-                e.preventDefault();
-                document.documentElement.requestFullscreen();
-            }
-        });
     }
+
+    // Gestion de la redimension de fenêtre
+    window.addEventListener('resize', () => {
+        this.handleWindowResize();
+    });
+}
+
+handleWindowResize() {
+    // Redimensionner les graphiques en plein écran si nécessaire
+    if (this.fullscreenChart?.chartInstance) {
+        setTimeout(() => {
+            this.fullscreenChart.chartInstance.resize();
+        }, 100);
+    }
+    
+    // Redimensionner tous les graphiques des widgets
+    this.widgets.forEach((widget) => {
+        if (widget.chartInstance) {
+            setTimeout(() => {
+                widget.chartInstance.resize();
+            }, 100);
+        }
+    });
+}
+
 
     // ===== MISE À JOUR DES WIDGETS =====
 
@@ -584,131 +540,491 @@ class EnhancedDashboard {
 
     // ===== PLEIN ÉCRAN POUR GRAPHIQUES =====
 
+setupFullscreenModal() {
+    const modal = document.createElement('div');
+    modal.id = 'fullscreen-chart-modal';
+    modal.className = 'fullscreen-modal';
+    modal.innerHTML = `
+        <div class="fullscreen-content">
+            <div class="fullscreen-header">
+                <h3 id="fullscreen-chart-title">Graphique</h3>
+                <div class="fullscreen-controls">
+                    <button class="btn-fullscreen-control" id="chart-settings" title="Paramètres">⚙️</button>
+                    <button class="btn-fullscreen-control" id="export-chart" title="Exporter">💾</button>
+                    <button class="btn-fullscreen-control" id="close-fullscreen" title="Fermer">✕</button>
+                </div>
+            </div>
+            <div class="fullscreen-chart-container" id="fullscreen-chart-container">
+                <!-- Le graphique plein écran sera inséré ici -->
+            </div>
+            <div class="fullscreen-toolbar">
+                <div class="chart-controls">
+                    <button class="chart-control-btn" data-action="zoom-in" title="Zoomer">🔍+</button>
+                    <button class="chart-control-btn" data-action="zoom-out" title="Dézoomer">🔍-</button>
+                    <button class="chart-control-btn" data-action="reset-zoom" title="Réinitialiser">🔄</button>
+                    <button class="chart-control-btn" data-action="toggle-animation" title="Animation">🎬</button>
+                </div>
+                <div class="chart-options">
+                    <select id="chart-time-range">
+                        <option value="1m">1 mois</option>
+                        <option value="3m">3 mois</option>
+                        <option value="6m">6 mois</option>
+                        <option value="1y" selected>1 an</option>
+                        <option value="all">Tout</option>
+                    </select>
+                    <select id="chart-type-selector">
+                        <option value="line">Ligne</option>
+                        <option value="bar">Barres</option>
+                        <option value="area">Aires</option>
+                        <option value="doughnut">Donut</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Event listeners pour le modal plein écran
+    document.getElementById('close-fullscreen').addEventListener('click', () => {
+        this.closeFullscreen();
+    });
+
+    document.getElementById('export-chart').addEventListener('click', () => {
+        this.exportFullscreenChart();
+    });
+
+    // Contrôles de graphique
+    document.querySelectorAll('.chart-control-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            this.handleChartControl(e.target.dataset.action);
+        });
+    });
+
+    // Sélecteurs
+    document.getElementById('chart-time-range').addEventListener('change', (e) => {
+        this.updateFullscreenChart('timeRange', e.target.value);
+    });
+
+    document.getElementById('chart-type-selector').addEventListener('change', (e) => {
+        this.updateFullscreenChart('chartType', e.target.value);
+    });
+
+    // Fermer avec Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && this.fullscreenChart) {
+            this.closeFullscreen();
+        }
+    });
+}
+
     openChartFullscreen(widgetId, title) {
-        const modal = document.getElementById('fullscreen-chart-modal');
-        const chartTitle = document.getElementById('fullscreen-chart-title');
-        const chartContainer = document.getElementById('fullscreen-chart-container');
+    const modal = document.getElementById('fullscreen-chart-modal');
+    const chartTitle = document.getElementById('fullscreen-chart-title');
+    const chartContainer = document.getElementById('fullscreen-chart-container');
 
-        chartTitle.textContent = title;
-        modal.classList.add('active');
-        
-        this.fullscreenChart = {
-            widgetId,
-            title,
-            container: chartContainer
-        };
-
-        // Créer le graphique plein écran
-        this.createFullscreenChart(widgetId);
-        
-        // Ajouter class pour désactiver le scroll du body
-        document.body.classList.add('fullscreen-active');
+    // Vérifier que le modal existe
+    if (!modal) {
+        console.error('Modal plein écran non trouvé');
+        return;
     }
+
+    chartTitle.textContent = title;
+    modal.classList.add('active');
+    
+    this.fullscreenChart = {
+        widgetId,
+        title,
+        container: chartContainer,
+        chartInstance: null
+    };
+
+    // Créer le graphique plein écran
+    this.createFullscreenChart(widgetId);
+    
+    // Désactiver le scroll du body et forcer le mode plein écran
+    document.body.classList.add('fullscreen-active');
+    document.documentElement.style.overflow = 'hidden';
+    
+    // S'assurer que le modal prend bien tout l'écran
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.zIndex = '10000';
+}
 
     createFullscreenChart(widgetId) {
-        const widget = this.widgets.get(widgetId);
-        if (!widget || widget.config.type !== 'chart') return;
+    const widget = this.widgets.get(widgetId);
+    if (!widget || widget.config.type !== 'chart') {
+        console.error('Widget non trouvé ou n\'est pas un graphique');
+        return;
+    }
 
-        const container = this.fullscreenChart.container;
-        container.innerHTML = `<canvas id="fullscreen-chart-canvas" class="fullscreen-chart"></canvas>`;
+    const container = this.fullscreenChart.container;
+    container.innerHTML = `<canvas id="fullscreen-chart-canvas" class="fullscreen-chart"></canvas>`;
 
-        const ctx = document.getElementById('fullscreen-chart-canvas').getContext('2d');
-        const chartConfig = this.getChartConfig(widget.config.chartType, widgetId, true);
-        
-        // Configuration spéciale pour plein écran
-        chartConfig.options = {
-            ...chartConfig.options,
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                ...chartConfig.options.plugins,
-                legend: {
-                    ...chartConfig.options.plugins?.legend,
-                    position: 'top',
-                    labels: {
-                        padding: 30,
-                        usePointStyle: true,
-                        font: {
-                            size: 16
-                        }
-                    }
+    const canvas = document.getElementById('fullscreen-chart-canvas');
+    if (!canvas) {
+        console.error('Canvas non trouvé');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    const chartConfig = this.getChartConfig(widget.config.chartType, widgetId, true);
+    
+    // Configuration spéciale pour plein écran
+    chartConfig.options = {
+        ...chartConfig.options,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            ...chartConfig.options.plugins,
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    font: {
+                        size: 14
+                    },
+                    padding: 20
                 }
             },
-            scales: {
-                ...chartConfig.options.scales,
-                x: {
-                    ...chartConfig.options.scales?.x,
-                    ticks: {
-                        font: {
-                            size: 14
-                        }
-                    }
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+                titleFont: {
+                    size: 14
                 },
-                y: {
-                    ...chartConfig.options.scales?.y,
-                    ticks: {
-                        font: {
-                            size: 14
-                        }
-                    }
+                bodyFont: {
+                    size: 12
                 }
             }
-        };
-
-        this.fullscreenChart.chartInstance = new Chart(ctx, chartConfig);
-    }
-
-    updateFullscreenChart(options = {}) {
-        if (!this.fullscreenChart?.chartInstance) return;
-
-        // Recréer le graphique avec les nouvelles options
-        this.fullscreenChart.chartInstance.destroy();
-        this.createFullscreenChart(this.fullscreenChart.widgetId);
-    }
-
-    handleChartControl(action) {
-        if (!this.fullscreenChart?.chartInstance) return;
-
-        const chart = this.fullscreenChart.chartInstance;
-
-        switch (action) {
-            case 'zoom-in':
-                chart.zoom(1.2);
-                break;
-            case 'zoom-out':
-                chart.zoom(0.8);
-                break;
-            case 'reset-zoom':
-                chart.resetZoom();
-                break;
-            case 'toggle-animation':
-                chart.options.animation.duration = chart.options.animation.duration > 0 ? 0 : 1000;
-                chart.update();
-                break;
+        },
+        interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
         }
+    };
+
+    // Ajuster la taille du canvas
+    canvas.style.width = '100%';
+    canvas.style.height = 'calc(100vh - 150px)';
+    canvas.style.maxWidth = '100%';
+    canvas.style.maxHeight = 'calc(100vh - 150px)';
+
+    try {
+        this.fullscreenChart.chartInstance = new Chart(ctx, chartConfig);
+        
+        // Forcer la mise à jour de la taille après création
+        setTimeout(() => {
+            if (this.fullscreenChart?.chartInstance) {
+                this.fullscreenChart.chartInstance.resize();
+            }
+        }, 100);
+    } catch (error) {
+        console.error('Erreur lors de la création du graphique plein écran:', error);
+        container.innerHTML = `<div class="error-message">Erreur lors du chargement du graphique</div>`;
     }
+}
 
     closeFullscreen() {
-        const modal = document.getElementById('fullscreen-chart-modal');
-        modal.classList.remove('active');
-        
-        if (this.fullscreenChart?.chartInstance) {
+    const modal = document.getElementById('fullscreen-chart-modal');
+    if (!modal) return;
+
+    modal.classList.remove('active');
+    
+    // Détruire l'instance Chart.js
+    if (this.fullscreenChart?.chartInstance) {
+        try {
             this.fullscreenChart.chartInstance.destroy();
+        } catch (error) {
+            console.warn('Erreur lors de la destruction du graphique:', error);
         }
-        
-        this.fullscreenChart = null;
-        document.body.classList.remove('fullscreen-active');
     }
+    
+    // Restaurer le scroll et l'état normal
+    this.fullscreenChart = null;
+    document.body.classList.remove('fullscreen-active');
+    document.documentElement.style.overflow = '';
+    
+    // Nettoyer les styles de position
+    modal.style.position = '';
+    modal.style.top = '';
+    modal.style.left = '';
+    modal.style.width = '';
+    modal.style.height = '';
+}
 
     exportFullscreenChart() {
-        if (!this.fullscreenChart?.chartInstance) return;
+    if (!this.fullscreenChart?.chartInstance) {
+        console.warn('Aucun graphique plein écran à exporter');
+        return;
+    }
 
+    try {
         const chart = this.fullscreenChart.chartInstance;
         const link = document.createElement('a');
-        link.download = `${this.fullscreenChart.title.replace(/[^a-z0-9]/gi, '_')}.png`;
-        link.href = chart.toBase64Image();
+        link.download = `${this.fullscreenChart.title.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.png`;
+        link.href = chart.toBase64Image('image/png', 1.0);
+        
+        // Déclencher le téléchargement
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        
+        console.log('Graphique exporté avec succès');
+    } catch (error) {
+        console.error('Erreur lors de l\'export du graphique:', error);
+        alert('Erreur lors de l\'export du graphique');
     }
+}
+
+handleChartControl(action) {
+    if (!this.fullscreenChart?.chartInstance) return;
+
+    const chart = this.fullscreenChart.chartInstance;
+    
+    try {
+        switch (action) {
+            case 'zoom-in':
+                if (chart.zoom) {
+                    chart.zoom(1.2);
+                }
+                break;
+                
+            case 'zoom-out':
+                if (chart.zoom) {
+                    chart.zoom(0.8);
+                }
+                break;
+                
+            case 'reset-zoom':
+                if (chart.resetZoom) {
+                    chart.resetZoom();
+                } else {
+                    chart.update();
+                }
+                break;
+                
+            case 'toggle-animation':
+                const currentDuration = chart.options.animation?.duration || 0;
+                chart.options.animation = {
+                    ...chart.options.animation,
+                    duration: currentDuration > 0 ? 0 : 1000
+                };
+                chart.update();
+                break;
+                
+            default:
+                console.warn('Action de contrôle non reconnue:', action);
+        }
+    } catch (error) {
+        console.error('Erreur lors du contrôle du graphique:', error);
+    }
+}
+
+updateFullscreenChart(property, value) {
+    if (!this.fullscreenChart?.chartInstance) return;
+
+    try {
+        switch (property) {
+            case 'timeRange':
+                // Ici vous pourriez filtrer les données selon la période
+                console.log('Changement de période:', value);
+                this.updateChartData(this.fullscreenChart.chartInstance, value);
+                break;
+                
+            case 'chartType':
+                // Recréer le graphique avec le nouveau type
+                this.recreateFullscreenChart(value);
+                break;
+                
+            default:
+                console.warn('Propriété non reconnue:', property);
+        }
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour du graphique:', error);
+    }
+}
+
+recreateFullscreenChart(newType) {
+    if (!this.fullscreenChart) return;
+
+    const widgetId = this.fullscreenChart.widgetId;
+    const widget = this.widgets.get(widgetId);
+    
+    if (!widget) return;
+
+    // Sauvegarder le type original
+    const originalType = widget.config.chartType;
+    
+    // Détruire le graphique actuel
+    if (this.fullscreenChart.chartInstance) {
+        this.fullscreenChart.chartInstance.destroy();
+    }
+    
+    // Mettre à jour temporairement le type de graphique
+    widget.config.chartType = newType;
+    
+    // Recréer le graphique
+    this.createFullscreenChart(widgetId);
+    
+    // Restaurer le type original dans la configuration du widget
+    widget.config.chartType = originalType;
+}
+
+updateChartData(chartInstance, timeRange) {
+    // Cette fonction devrait filtrer les données selon la période sélectionnée
+    // Pour l'instant, nous simulons un rechargement des données
+    
+    try {
+        // Simuler de nouvelles données selon la période
+        const newData = this.getFilteredChartData(timeRange);
+        
+        if (newData && chartInstance.data) {
+            chartInstance.data.labels = newData.labels;
+            chartInstance.data.datasets = newData.datasets;
+            chartInstance.update('active');
+        }
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour des données:', error);
+    }
+}
+
+getFilteredChartData(timeRange) {
+    // Cette fonction devrait retourner les données filtrées selon la période
+    // Implémentation simplifiée pour l'exemple
+    
+    const transactions = this.getTransactions();
+    if (!transactions || !transactions.length) return null;
+    
+    const now = new Date();
+    let startDate;
+    
+    switch (timeRange) {
+        case '1m':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            break;
+        case '3m':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+            break;
+        case '6m':
+            startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+            break;
+        case '1y':
+            startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+            break;
+        case 'all':
+        default:
+            startDate = new Date(0); // Début des temps
+            break;
+    }
+    
+    // Filtrer les transactions selon la période
+    const filteredTransactions = transactions.filter(t => 
+        new Date(t.date) >= startDate
+    );
+    
+    // Générer les données pour le graphique
+    return this.processTransactionsForChart(filteredTransactions);
+}
+
+processTransactionsForChart(transactions) {
+    // Grouper les transactions par mois
+    const monthlyData = {};
+    
+    transactions.forEach(transaction => {
+        const date = new Date(transaction.date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = {
+                income: 0,
+                expenses: 0,
+                balance: 0
+            };
+        }
+        
+        if (transaction.type === 'income') {
+            monthlyData[monthKey].income += Math.abs(transaction.amount);
+        } else {
+            monthlyData[monthKey].expenses += Math.abs(transaction.amount);
+        }
+        
+        monthlyData[monthKey].balance = monthlyData[monthKey].income - monthlyData[monthKey].expenses;
+    });
+    
+    // Convertir en format Chart.js
+    const sortedMonths = Object.keys(monthlyData).sort();
+    const labels = sortedMonths.map(month => {
+        const [year, monthNum] = month.split('-');
+        const date = new Date(year, monthNum - 1);
+        return date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+    });
+    
+    const incomeData = sortedMonths.map(month => monthlyData[month].income);
+    const expensesData = sortedMonths.map(month => monthlyData[month].expenses);
+    const balanceData = sortedMonths.map(month => monthlyData[month].balance);
+    
+    return {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Revenus',
+                data: incomeData,
+                borderColor: 'rgba(34, 197, 94, 1)',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                fill: false,
+                tension: 0.4
+            },
+            {
+                label: 'Dépenses',
+                data: expensesData,
+                borderColor: 'rgba(239, 68, 68, 1)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                fill: false,
+                tension: 0.4
+            },
+            {
+                label: 'Solde',
+                data: balanceData,
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4
+            }
+        ]
+    };
+}
+
+// ===== FONCTIONS UTILITAIRES =====
+
+getTransactions() {
+    // Cette fonction devrait récupérer les transactions depuis le stockage local
+    try {
+        const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+        return transactions;
+    } catch (error) {
+        console.error('Erreur lors de la récupération des transactions:', error);
+        return [];
+    }
+}
+
+showWidgetError(content, error) {
+    console.error('Erreur dans le widget:', error);
+    content.innerHTML = `
+        <div class="widget-error">
+            <div class="error-icon">⚠️</div>
+            <div class="error-message">
+                <h4>Erreur de chargement</h4>
+                <p>Impossible de charger le contenu de ce widget.</p>
+                <button class="btn-retry" onclick="location.reload()">Réessayer</button>
+            </div>
+        </div>
+    `;
+}
 
     // ===== CONFIGURATION DES GRAPHIQUES =====
 
@@ -1531,13 +1847,20 @@ class EnhancedDashboard {
 
 
     refreshAllWidgets() {
-        this.widgets.forEach((widget, widgetId) => {
-            this.refreshWidget(widgetId);
-        });
-        
-        this.updateInsights();
-        this.updateDashboardAlerts();
-    }
+    console.log('Actualisation de tous les widgets...');
+    
+    this.widgets.forEach((widget, widgetId) => {
+        if (widget.refreshFunction) {
+            try {
+                widget.refreshFunction();
+                widget.lastUpdate = new Date();
+                console.log(`Widget ${widgetId} actualisé`);
+            } catch (error) {
+                console.error(`Erreur lors de l'actualisation du widget ${widgetId}:`, error);
+            }
+        }
+    });
+}
 
     updateAllWidgets() {
         if (!this.initialized) {
@@ -1749,21 +2072,45 @@ class EnhancedDashboard {
     // ===== EXPORT =====
 
     exportDashboard() {
+    console.log('Export du dashboard...');
+    
+    try {
+        // Créer un objet contenant toutes les données du dashboard
         const dashboardData = {
-            summary: this.getDashboardSummary(),
-            widgets: this.getWidgetsData(),
-            insights: this.getInsightsData(),
-            exportDate: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            widgets: Array.from(this.widgets.entries()).map(([id, widget]) => ({
+                id: id,
+                config: widget.config,
+                lastUpdate: widget.lastUpdate
+            })),
+            insights: this.currentInsights || [],
+            transactions: this.getTransactions() || []
         };
-
-        // Export en JSON
-        const blob = new Blob([JSON.stringify(dashboardData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        
+        // Convertir en JSON
+        const dataStr = JSON.stringify(dashboardData, null, 2);
+        
+        // Créer et télécharger le fichier
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
         const link = document.createElement('a');
         link.href = url;
-        link.download = `dashboard_export_${new Date().toISOString().slice(0, 10)}.json`;
+        link.download = `dashboard_export_${new Date().toISOString().split('T')[0]}.json`;
+        
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        
+        URL.revokeObjectURL(url);
+        
+        console.log('Dashboard exporté avec succès');
+    } catch (error) {
+        console.error('Erreur lors de l\'export du dashboard:', error);
+        alert('Erreur lors de l\'export du dashboard');
     }
+}
+
 
     getDashboardSummary() {
         const stats = this.transactionManager.getTotalStats();
