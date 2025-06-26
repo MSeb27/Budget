@@ -419,3 +419,198 @@
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ===== NOUVEAUX THÈMES SOMBRES ===== */
+
+/* ===== THÈME OBSIDIAN ELEGANCE ===== */
+[data-theme="obsidian"] {
+    --primary-color: #6366f1;
+    --primary-hover: #4f46e5;
+    --success-color: #22c55e;
+    --success-hover: #16a34a;
+    --danger-color: #ef4444;
+    --danger-hover: #dc2626;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6;
+    --light-color: #111827;
+    --dark-color: #030712;
+    --text-color: #f8fafc;
+    --border-color: #374151;
+    --shadow: 0 8px 25px rgba(99, 102, 241, 0.3), 0 4px 10px rgba(79, 70, 229, 0.2);
+    --background: linear-gradient(135deg, #111827 0%, #1f2937 50%, #374151 100%);
+    --surface: rgba(31, 41, 59, 0.95);
+    --accent-color: #8b5cf6;
+    --quaternary-color: #6366f1;
+    --quinary-color: #8b5cf6;
+    --senary-color: #a78bfa;
+    --septenary-color: #4f46e5;
+}
+
+/* ===== THÈME NEON NIGHTS ===== */
+[data-theme="neon"] {
+    --primary-color: #10b981;
+    --primary-hover: #059669;
+    --success-color: #06ffa5;
+    --success-hover: #04d484;
+    --danger-color: #ff073a;
+    --danger-hover: #e60629;
+    --warning-color: #ffd60a;
+    --info-color: #00bcd4;
+    --light-color: #0d1117;
+    --dark-color: #010409;
+    --text-color: #e6fffa;
+    --border-color: #21262d;
+    --shadow: 0 8px 25px rgba(16, 185, 129, 0.4), 0 4px 10px rgba(6, 255, 165, 0.3);
+    --background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%);
+    --surface: rgba(33, 38, 45, 0.95);
+    --accent-color: #ff0080;
+    --quaternary-color: #10b981;
+    --quinary-color: #06ffa5;
+    --senary-color: #ff073a;
+    --septenary-color: #ffd60a;
+}
+
+/* ===== EFFETS SPÉCIAUX POUR LES NOUVEAUX THÈMES SOMBRES ===== */
+
+/* Effets de lueur pour Obsidian */
+[data-theme="obsidian"] {
+    --glow-effect: 0 0 20px rgba(99, 102, 241, 0.5);
+}
+
+[data-theme="obsidian"] .calendar-day.selected,
+[data-theme="obsidian"] .btn-primary:hover,
+[data-theme="obsidian"] .card:hover {
+    box-shadow: var(--glow-effect);
+}
+
+[data-theme="obsidian"] input:focus,
+[data-theme="obsidian"] select:focus,
+[data-theme="obsidian"] textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), var(--glow-effect);
+}
+
+/* Effets néon pour Neon */
+[data-theme="neon"] {
+    --neon-glow: 0 0 15px currentColor;
+    --neon-pulse: pulse-neon 2s ease-in-out infinite alternate;
+}
+
+[data-theme="neon"] .calendar-day.selected {
+    box-shadow: 0 0 20px var(--primary-color), 0 0 40px var(--primary-color);
+    animation: var(--neon-pulse);
+}
+
+[data-theme="neon"] .btn-primary {
+    background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="neon"] .btn-primary:hover {
+    box-shadow: 0 0 30px var(--primary-color), 0 0 60px var(--primary-color);
+    transform: translateY(-2px);
+}
+
+/* Animation pulse néon */
+@keyframes pulse-neon {
+    0% {
+        box-shadow: 0 0 20px var(--primary-color), 0 0 40px var(--primary-color);
+    }
+    100% {
+        box-shadow: 0 0 30px var(--primary-color), 0 0 60px var(--primary-color), 0 0 80px var(--primary-color);
+    }
+}
+
+/* Adaptation des éléments pour les thèmes sombres */
+[data-theme="obsidian"] input,
+[data-theme="obsidian"] select,
+[data-theme="obsidian"] textarea,
+[data-theme="neon"] input,
+[data-theme="neon"] select,
+[data-theme="neon"] textarea {
+    background: var(--surface);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme="obsidian"] input::placeholder,
+[data-theme="obsidian"] textarea::placeholder,
+[data-theme="neon"] input::placeholder,
+[data-theme="neon"] textarea::placeholder {
+    color: rgba(248, 250, 252, 0.5);
+}
+
+[data-theme="obsidian"] .card,
+[data-theme="neon"] .card {
+    background: var(--surface);
+    border-color: var(--border-color);
+    backdrop-filter: blur(10px);
+}
+
+[data-theme="obsidian"] .calendar-day,
+[data-theme="neon"] .calendar-day {
+    background: var(--surface);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme="obsidian"] .calendar-day:hover,
+[data-theme="neon"] .calendar-day:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--primary-color);
+}
+
+[data-theme="neon"] .calendar-day:hover {
+    background: rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+}
+
+/* Scrollbars pour thèmes sombres */
+[data-theme="obsidian"] ::-webkit-scrollbar,
+[data-theme="neon"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+[data-theme="obsidian"] ::-webkit-scrollbar-track,
+[data-theme="neon"] ::-webkit-scrollbar-track {
+    background: var(--surface);
+}
+
+[data-theme="obsidian"] ::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.6);
+    border-radius: 4px;
+}
+
+[data-theme="neon"] ::-webkit-scrollbar-thumb {
+    background: rgba(16, 185, 129, 0.6);
+    border-radius: 4px;
+}
+
+[data-theme="obsidian"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.8);
+}
+
+[data-theme="neon"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(16, 185, 129, 0.8);
+}
+
+/* Effets spéciaux pour les textes */
+[data-theme="neon"] h1,
+[data-theme="neon"] h2,
+[data-theme="neon"] h3 {
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+[data-theme="obsidian"] .transaction-item.income .amount,
+[data-theme="neon"] .transaction-item.income .amount {
+    color: var(--success-color);
+    text-shadow: 0 0 8px var(--success-color);
+}
+
+[data-theme="obsidian"] .transaction-item.expense .amount,
+[data-theme="neon"] .transaction-item.expense .amount {
+    color: var(--danger-color);
+    text-shadow: 0 0 8px var(--danger-color);
+}

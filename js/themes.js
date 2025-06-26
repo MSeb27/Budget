@@ -1,4 +1,4 @@
-		// ===== GESTIONNAIRE DE THÈMES AVANCÉ =====
+// ===== GESTIONNAIRE DE THÈMES AVANCÉ =====
 class ThemeManager {
     static themes = {
         light: {
@@ -78,6 +78,19 @@ class ThemeManager {
             category: 'Futuriste',
             isDark: true,
             description: 'Interface cybernétique futuriste'
+        },
+        // ===== NOUVEAUX THÈMES SOMBRES =====
+        obsidian: {
+            name: '🖤 Obsidian Elegance',
+            category: 'Sombre',
+            isDark: true,
+            description: 'Élégance sombre avec des accents violets sophistiqués'
+        },
+        neon: {
+            name: '🌈 Neon Nights',
+            category: 'Sombre',
+            isDark: true,
+            description: 'Ambiance nocturne néon avec des effets lumineux'
         }
     };
 
@@ -115,56 +128,288 @@ class ThemeManager {
         // Retirer l'ancien thème
         document.documentElement.removeAttribute('data-theme');
         
-        // Appliquer le nouveau thème
+        // Appliquer le nouveau thème (sauf si c'est 'light' qui est le défaut)
         if (theme !== 'light') {
             document.documentElement.setAttribute('data-theme', theme);
         }
 
-        // Mettre à jour les variables CSS custom si nécessaire
-        this.updateCustomProperties(theme);
-        
+        // Mettre à jour le thème actuel
         this.currentTheme = theme;
-        
-        // Sauvegarder dans le localStorage
+
+        // Sauvegarder la préférence
         this.saveTheme(theme);
-        
-        // Mettre à jour les meta tags pour mobile
+
+        // Mettre à jour les propriétés personnalisées
+        this.updateCustomProperties(theme);
+
+        // Mettre à jour la meta couleur pour mobile
         this.updateMetaThemeColor(theme);
-        
-        // Déclencher le callback
+
+        // Appeler le callback
         if (this.onThemeChange) {
             this.onThemeChange(theme, this.themes[theme]);
         }
 
-        // Émettre un événement custom
+        // Émettre un événement personnalisé
         this.dispatchThemeChangeEvent(theme);
+
+        console.log(`🎨 Thème appliqué: ${this.themes[theme].name}`);
     }
 
     /**
-     * Change de thème avec animation
-     * @param {string} newTheme - Nouveau thème
+     * Change de thème avec validation
+     * @param {string} theme - Nom du thème
      */
-    static changeTheme(newTheme) {
-        if (!this.themes[newTheme]) {
-            console.warn(`Thème inconnu: ${newTheme}`);
-            return false;
-        }
-
-        if (newTheme === this.currentTheme) {
-            return false; // Même thème, pas de changement
-        }
-
-        this.applyTheme(newTheme);
-        return true;
+    static changeTheme(theme) {
+        this.applyTheme(theme);
     }
 
     /**
-     * Passe au thème suivant dans la liste
+     * Sauvegarde le thème dans le localStorage
+     * @param {string} theme - Nom du thème
+     */
+    static saveTheme(theme) {
+        try {
+            localStorage.setItem('preferred-theme', theme);
+        } catch (e) {
+            console.warn('Impossible de sauvegarder le thème:', e);
+        }
+    }
+
+    /**
+     * Charge le thème depuis le localStorage
+     * @returns {string|null} - Thème sauvegardé ou null
+     */
+    static loadTheme() {
+        try {
+            return localStorage.getItem('preferred-theme');
+        } catch (e) {
+            console.warn('Impossible de charger le thème:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Extrait les couleurs CSS actuelles
+     * @returns {Object} - Objet contenant toutes les couleurs
+     */
+    static extractCSSColors() {
+        const computedStyle = getComputedStyle(document.documentElement);
+        
+        return {
+            primary: computedStyle.getPropertyValue('--primary-color').trim(),
+            success: computedStyle.getPropertyValue('--success-color').trim(),
+            danger: computedStyle.getPropertyValue('--danger-color').trim(),
+            warning: computedStyle.getPropertyValue('--warning-color').trim(),
+            info: computedStyle.getPropertyValue('--info-color').trim(),
+            accent: computedStyle.getPropertyValue('--accent-color').trim(),
+            background: computedStyle.getPropertyValue('--background').trim(),
+            surface: computedStyle.getPropertyValue('--surface').trim(),
+            text: computedStyle.getPropertyValue('--text-color').trim(),
+            border: computedStyle.getPropertyValue('--border-color').trim(),
+            quaternary: computedStyle.getPropertyValue('--quaternary-color').trim(),
+            quinary: computedStyle.getPropertyValue('--quinary-color').trim(),
+            senary: computedStyle.getPropertyValue('--senary-color').trim(),
+            septenary: computedStyle.getPropertyValue('--septenary-color').trim()
+        };
+    }
+
+    /**
+     * Ajoute un effet de transition lors du changement de thème
+     */
+    static addTransitionEffect() {
+        document.body.style.transition = `all ${this.transitionDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+        
+        setTimeout(() => {
+            document.body.style.transition = '';
+        }, this.transitionDuration);
+    }
+
+    /**
+     * Met à jour les propriétés CSS personnalisées si nécessaire
+     * @param {string} theme - Nom du thème
+     */
+    static updateCustomProperties(theme) {
+        const root = document.documentElement;
+        
+        // Ajustements spéciaux pour certains thèmes
+        if (theme === 'cyber') {
+            root.style.setProperty('--glow-intensity', '0.8');
+            root.style.setProperty('--animation-speed', '2s');
+        } else if (theme === 'obsidian') {
+            root.style.setProperty('--glow-intensity', '0.6');
+            root.style.setProperty('--blur-effect', '10px');
+        } else if (theme === 'neon') {
+            root.style.setProperty('--glow-intensity', '1.0');
+            root.style.setProperty('--pulse-speed', '2s');
+            root.style.setProperty('--neon-brightness', '1.2');
+        } else {
+            root.style.removeProperty('--glow-intensity');
+            root.style.removeProperty('--animation-speed');
+            root.style.removeProperty('--blur-effect');
+            root.style.removeProperty('--pulse-speed');
+            root.style.removeProperty('--neon-brightness');
+        }
+    }
+
+    /**
+     * Met à jour la couleur de thème pour mobile (meta tag)
+     * @param {string} theme - Nom du thème
+     */
+    static updateMetaThemeColor(theme) {
+        let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        
+        if (!metaThemeColor) {
+            metaThemeColor = document.createElement('meta');
+            metaThemeColor.name = 'theme-color';
+            document.head.appendChild(metaThemeColor);
+        }
+
+        // Couleurs de meta theme par thème
+        const metaColors = {
+            light: '#f1f5f9',
+            midnight: '#0f172a',
+            cyber: '#0a0a0f',
+            obsidian: '#111827',
+            neon: '#0d1117'
+        };
+
+        metaThemeColor.content = metaColors[theme] || this.extractCSSColors().background || '#2563eb';
+    }
+
+    /**
+     * Crée un aperçu de thème pour l'interface
+     * @param {string} theme - Nom du thème
+     * @returns {HTMLElement} - Élément d'aperçu
+     */
+    static createThemePreview(theme) {
+        const themeInfo = this.themes[theme];
+        if (!themeInfo) return null;
+
+        const preview = document.createElement('div');
+        preview.className = `theme-preview ${this.currentTheme === theme ? 'current-theme' : ''}`;
+        preview.setAttribute('data-theme-preview', theme);
+
+        // Obtenir les couleurs pour ce thème
+        const colors = this.getThemeColorsComplete(theme);
+
+        preview.innerHTML = `
+            <div class="theme-preview-colors">
+                <div class="theme-preview-color" 
+                     style="background-color: ${colors.primary}" 
+                     title="Primaire"
+                     data-color="primary"></div>
+                <div class="theme-preview-color" 
+                     style="background-color: ${colors.success}" 
+                     title="Succès"
+                     data-color="success"></div>
+                <div class="theme-preview-color" 
+                     style="background-color: ${colors.danger}" 
+                     title="Danger"
+                     data-color="danger"></div>
+                <div class="theme-preview-color" 
+                     style="background-color: ${colors.quaternary}" 
+                     title="Quaternaire"
+                     data-color="quaternary"></div>
+            </div>
+            <div class="theme-preview-secondary-colors">
+                <div class="theme-secondary-color" 
+                     style="background-color: ${colors.quinary}" 
+                     title="Quinary"></div>
+                <div class="theme-secondary-color" 
+                     style="background-color: ${colors.senary}" 
+                     title="Senary"></div>
+                <div class="theme-secondary-color" 
+                     style="background-color: ${colors.septenary}" 
+                     title="Septenary"></div>
+                <div class="theme-secondary-color" 
+                     style="background-color: ${colors.info}" 
+                     title="Info"></div>
+            </div>
+            <div class="theme-preview-description">${themeInfo.description}</div>
+            <div class="theme-preview-background-sample" 
+                 style="background: ${colors.background}; color: ${colors.text};">
+                <span>Aperçu du texte</span>
+                ${themeInfo.isDark ? '<span class="dark-indicator">🌙</span>' : '<span class="light-indicator">☀️</span>'}
+            </div>
+        `;
+        
+        // Gestionnaire de clic pour appliquer le thème
+        preview.addEventListener('click', () => {
+            this.changeTheme(theme);
+        });
+        
+        return preview;
+    }
+
+    /**
+     * Obtient les couleurs complètes d'un thème
+     * @param {string} theme - Nom du thème
+     * @returns {Object} - Couleurs du thème
+     */
+    static getThemeColorsComplete(theme) {
+        if (!this.themes[theme]) {
+            return this.extractCSSColors();
+        }
+
+        // Mapping des couleurs par thème pour les nouveaux thèmes sombres
+        const themeColorMaps = {
+            obsidian: {
+                primary: '#6366f1',
+                success: '#22c55e',
+                danger: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6',
+                accent: '#8b5cf6',
+                background: 'linear-gradient(135deg, #111827 0%, #1f2937 50%, #374151 100%)',
+                surface: 'rgba(31, 41, 59, 0.95)',
+                text: '#f8fafc',
+                border: '#374151',
+                quaternary: '#6366f1',
+                quinary: '#8b5cf6',
+                senary: '#a78bfa',
+                septenary: '#4f46e5'
+            },
+            neon: {
+                primary: '#10b981',
+                success: '#06ffa5',
+                danger: '#ff073a',
+                warning: '#ffd60a',
+                info: '#00bcd4',
+                accent: '#ff0080',
+                background: 'linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%)',
+                surface: 'rgba(33, 38, 45, 0.95)',
+                text: '#e6fffa',
+                border: '#21262d',
+                quaternary: '#10b981',
+                quinary: '#06ffa5',
+                senary: '#ff073a',
+                septenary: '#ffd60a'
+            }
+        };
+
+        // Si on a un mapping spécifique, l'utiliser
+        if (themeColorMaps[theme]) {
+            return themeColorMaps[theme];
+        }
+
+        // Sinon, extraire directement ou utiliser les défauts
+        if (theme === this.currentTheme) {
+            return this.extractCSSColors();
+        }
+
+        // Retourner les couleurs par défaut pour les autres thèmes
+        return this.extractCSSColors();
+    }
+
+    /**
+     * Thème suivant dans la liste
+     * @returns {string} - Nom du nouveau thème
      */
     static nextTheme() {
         const themeKeys = Object.keys(this.themes);
         const currentIndex = themeKeys.indexOf(this.currentTheme);
-        const nextIndex = (currentIndex + 1) % themeKeys.length;
+        const nextIndex = currentIndex < themeKeys.length - 1 ? currentIndex + 1 : 0;
         const nextTheme = themeKeys[nextIndex];
         
         this.changeTheme(nextTheme);
@@ -172,12 +417,13 @@ class ThemeManager {
     }
 
     /**
-     * Passe au thème précédent dans la liste
+     * Thème précédent dans la liste
+     * @returns {string} - Nom du nouveau thème
      */
     static previousTheme() {
         const themeKeys = Object.keys(this.themes);
         const currentIndex = themeKeys.indexOf(this.currentTheme);
-        const prevIndex = currentIndex === 0 ? themeKeys.length - 1 : currentIndex - 1;
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : themeKeys.length - 1;
         const prevTheme = themeKeys[prevIndex];
         
         this.changeTheme(prevTheme);
@@ -266,6 +512,24 @@ class ThemeManager {
     }
 
     /**
+     * Retourne uniquement les thèmes sombres
+     */
+    static getDarkThemes() {
+        return Object.entries(this.themes)
+            .filter(([key, theme]) => theme.isDark)
+            .map(([key, theme]) => ({ key, ...theme }));
+    }
+
+    /**
+     * Retourne uniquement les thèmes clairs
+     */
+    static getLightThemes() {
+        return Object.entries(this.themes)
+            .filter(([key, theme]) => !theme.isDark)
+            .map(([key, theme]) => ({ key, ...theme }));
+    }
+
+    /**
      * Vérifie si un thème est sombre
      * @param {string} theme - Nom du thème (optionnel, utilise le thème actuel)
      */
@@ -307,6 +571,7 @@ class ThemeManager {
                 selectElement.appendChild(optgroup);
             });
         } else {
+            // Liste simple sans groupes
             Object.entries(this.themes).forEach(([key, theme]) => {
                 const option = document.createElement('option');
                 option.value = key;
@@ -323,114 +588,35 @@ class ThemeManager {
     }
 
     /**
-     * Configure un sélecteur de thème
+     * Configure un sélecteur de thème avec events
      * @param {HTMLSelectElement} selectElement - Élément select
      * @param {boolean} groupByCategory - Grouper par catégorie
      */
     static setupThemeSelector(selectElement, groupByCategory = true) {
+        if (!selectElement) {
+            console.warn('⚠️ setupThemeSelector: Élément select non fourni');
+            return;
+        }
+
+        // Peupler le sélecteur
         this.populateThemeSelector(selectElement, groupByCategory);
         
+        // Ajouter l'event listener pour le changement
         selectElement.addEventListener('change', (e) => {
-            this.changeTheme(e.target.value);
+            const selectedTheme = e.target.value;
+            console.log(`🎨 Changement de thème via sélecteur: ${selectedTheme}`);
+            this.changeTheme(selectedTheme);
         });
 
-        // Mettre à jour le sélecteur quand le thème change
+        // Mettre à jour le sélecteur quand le thème change via d'autres moyens
         document.addEventListener('themechange', (e) => {
             if (selectElement.value !== e.detail.theme) {
                 selectElement.value = e.detail.theme;
+                console.log(`🔄 Sélecteur mis à jour: ${e.detail.theme}`);
             }
         });
-    }
 
-    /**
-     * Retourne les couleurs du thème actuel
-     * @param {string} theme - Thème spécifique (optionnel)
-     */
-    static getThemeColors(theme = null) {
-        const themeToCheck = theme || this.currentTheme;
-        
-        // Appliquer temporairement le thème si différent
-        if (theme && theme !== this.currentTheme) {
-            const originalTheme = this.currentTheme;
-            this.applyTheme(theme);
-            const colors = this.extractCSSColors();
-            this.applyTheme(originalTheme);
-            return colors;
-        }
-        
-        return this.extractCSSColors();
-    }
-
-    /**
-     * Extrait les couleurs CSS actuelles
-     */
-    static extractCSSColors() {
-    const root = document.documentElement;
-    const computedStyle = getComputedStyle(root);
-    
-    return {
-        primary: computedStyle.getPropertyValue('--primary-color').trim(),
-        success: computedStyle.getPropertyValue('--success-color').trim(),
-        danger: computedStyle.getPropertyValue('--danger-color').trim(),
-        warning: computedStyle.getPropertyValue('--warning-color').trim(),
-        info: computedStyle.getPropertyValue('--info-color').trim(),
-        accent: computedStyle.getPropertyValue('--accent-color').trim(),
-        background: computedStyle.getPropertyValue('--background').trim(),
-        surface: computedStyle.getPropertyValue('--surface').trim(),
-        text: computedStyle.getPropertyValue('--text-color').trim(),
-        border: computedStyle.getPropertyValue('--border-color').trim(),
-        quaternary: computedStyle.getPropertyValue('--quaternary-color').trim(),
-        quinary: computedStyle.getPropertyValue('--quinary-color').trim(),
-        senary: computedStyle.getPropertyValue('--senary-color').trim(),
-        septenary: computedStyle.getPropertyValue('--septenary-color').trim()
-    };
-}
-
-    /**
-     * Ajoute un effet de transition lors du changement de thème
-     */
-    static addTransitionEffect() {
-        document.body.style.transition = `all ${this.transitionDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`;
-        
-        setTimeout(() => {
-            document.body.style.transition = '';
-        }, this.transitionDuration);
-    }
-
-    /**
-     * Met à jour les propriétés CSS personnalisées si nécessaire
-     * @param {string} theme - Nom du thème
-     */
-    static updateCustomProperties(theme) {
-        // Cette fonction peut être étendue pour des ajustements spécifiques
-        const root = document.documentElement;
-        
-        // Ajustements spéciaux pour certains thèmes
-        if (theme === 'cyber') {
-            root.style.setProperty('--glow-intensity', '0.8');
-            root.style.setProperty('--animation-speed', '2s');
-        } else {
-            root.style.removeProperty('--glow-intensity');
-            root.style.removeProperty('--animation-speed');
-        }
-    }
-
-    /**
-     * Met à jour la couleur de thème pour mobile (meta tag)
-     * @param {string} theme - Nom du thème
-     */
-    static updateMetaThemeColor(theme) {
-        let metaThemeColor = document.querySelector('meta[name="theme-color"]');
-        
-        if (!metaThemeColor) {
-            metaThemeColor = document.createElement('meta');
-            metaThemeColor.name = 'theme-color';
-            document.head.appendChild(metaThemeColor);
-        }
-
-        // Obtenir la couleur primaire du thème
-        const colors = this.extractCSSColors();
-        metaThemeColor.content = colors.primary || '#2563eb';
+        console.log(`✅ Sélecteur de thème configuré avec ${Object.keys(this.themes).length} thèmes`);
     }
 
     /**
@@ -467,7 +653,27 @@ class ThemeManager {
                 this.toggleDarkMode();
                 this.showThemeNotification();
             }
+
+            // Ctrl + Shift + R : Thème aléatoire
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                this.randomTheme();
+                this.showThemeNotification();
+            }
         });
+    }
+
+    /**
+     * Applique un thème aléatoire
+     * @returns {string} - Nom du thème appliqué
+     */
+    static randomTheme() {
+        const themes = Object.keys(this.themes);
+        const availableThemes = themes.filter(theme => theme !== this.currentTheme);
+        const randomTheme = availableThemes[Math.floor(Math.random() * availableThemes.length)];
+        
+        this.changeTheme(randomTheme);
+        return randomTheme;
     }
 
     /**
@@ -504,35 +710,39 @@ class ThemeManager {
             <div class="theme-notification-content">
                 <span class="theme-notification-icon">${this.themes[this.currentTheme].name.split(' ')[0]}</span>
                 <span class="theme-notification-text">${this.themes[this.currentTheme].name}</span>
+                <span class="theme-notification-mode">${this.isDarkTheme() ? '🌙' : '☀️'}</span>
             </div>
         `;
-        
-        // Styles inline pour la notification
-        Object.assign(notification.style, {
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            backgroundColor: 'var(--surface)',
-            color: 'var(--text-color)',
-            padding: '12px 20px',
-            borderRadius: 'var(--border-radius)',
-            boxShadow: 'var(--shadow)',
-            border: '2px solid var(--primary-color)',
-            zIndex: '10000',
-            opacity: '0',
-            transform: 'translateX(100px)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        });
+
+        // Styles de la notification
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--surface);
+            color: var(--text-color);
+            padding: 12px 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            z-index: 10000;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+        `;
 
         document.body.appendChild(notification);
 
-        // Animation d'apparition
+        // Animation d'entrée
         requestAnimationFrame(() => {
             notification.style.opacity = '1';
             notification.style.transform = 'translateX(0)';
         });
 
-        // Suppression après 2 secondes
+        // Suppression automatique
         setTimeout(() => {
             notification.style.opacity = '0';
             notification.style.transform = 'translateX(100px)';
@@ -542,401 +752,65 @@ class ThemeManager {
                     notification.parentNode.removeChild(notification);
                 }
             }, 300);
-        }, 2000);
+        }, 2500);
     }
 
     /**
-     * Sauvegarde le thème dans localStorage
-     * @param {string} theme - Nom du thème
+     * Retourne des statistiques sur les thèmes
      */
-    static saveTheme(theme) {
-        try {
-            localStorage.setItem('budget-theme', theme);
-            return true;
-        } catch (error) {
-            console.error('Erreur lors de la sauvegarde du thème:', error);
-            return false;
-        }
+    static getThemeStats() {
+        const themes = Object.values(this.themes);
+        const darkThemes = themes.filter(theme => theme.isDark);
+        const lightThemes = themes.filter(theme => !theme.isDark);
+        
+        const categories = {};
+        themes.forEach(theme => {
+            const category = theme.category || 'Autres';
+            categories[category] = (categories[category] || 0) + 1;
+        });
+
+        return {
+            total: themes.length,
+            dark: darkThemes.length,
+            light: lightThemes.length,
+            categories: categories,
+            currentTheme: this.currentTheme,
+            currentIsDark: this.isDarkTheme()
+        };
     }
 
     /**
-     * Charge le thème depuis localStorage
-     */
-    static loadTheme() {
-        try {
-            return localStorage.getItem('budget-theme') || 'light';
-        } catch (error) {
-            console.error('Erreur lors du chargement du thème:', error);
-            return 'light';
-        }
-    }
-
-    /**
-     * Exporte la configuration des thèmes
+     * Exporte la configuration actuelle des thèmes
      */
     static exportThemeConfig() {
-        const config = {
+        return {
             currentTheme: this.currentTheme,
             themes: this.themes,
+            colors: this.extractCSSColors(),
+            stats: this.getThemeStats(),
             timestamp: new Date().toISOString()
         };
-        
-        return JSON.stringify(config, null, 2);
     }
 
     /**
-     * Importe une configuration de thèmes
-     * @param {string} configJson - Configuration JSON
+     * Applique automatiquement le bon thème au chargement
      */
-    static importThemeConfig(configJson) {
-        try {
-            const config = JSON.parse(configJson);
-            
-            if (config.themes) {
-                // Fusionner les nouveaux thèmes avec les existants
-                this.themes = { ...this.themes, ...config.themes };
-            }
-            
-            if (config.currentTheme && this.themes[config.currentTheme]) {
-                this.applyTheme(config.currentTheme);
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Erreur lors de l\'import de la configuration:', error);
-            return false;
+    static autoApplyTheme() {
+        // 1. Vérifier le thème sauvegardé
+        const savedTheme = this.loadTheme();
+        if (savedTheme && this.themes[savedTheme]) {
+            this.applyTheme(savedTheme);
+            return savedTheme;
         }
-    }
 
-    /**
-     * Crée un aperçu des couleurs d'un thème
-     * @param {string} theme - Nom du thème
-     * @returns {HTMLElement} - Élément d'aperçu
-     */
-    static createThemePreview(theme) {
-    const preview = document.createElement('div');
-    preview.className = 'theme-preview-item';
-    preview.setAttribute('data-theme-preview', theme);
-    
-    const themeInfo = this.themes[theme];
-    
-    // Obtenir les couleurs en appliquant temporairement le thème
-    const colors = this.getThemeColorsComplete(theme);
-    
-    preview.innerHTML = `
-        <div class="theme-preview-header">
-            <span class="theme-preview-name">${themeInfo.name}</span>
-            <span class="theme-preview-category">${themeInfo.category}</span>
-        </div>
-        <div class="theme-preview-colors">
-            <div class="theme-preview-color" 
-                 style="background-color: ${colors.primary}" 
-                 title="Primaire"
-                 data-color="primary"></div>
-            <div class="theme-preview-color" 
-                 style="background-color: ${colors.accent}" 
-                 title="Accent"
-                 data-color="accent"></div>
-            <div class="theme-preview-color" 
-                 style="background-color: ${colors.success}" 
-                 title="Succès"
-                 data-color="success"></div>
-            <div class="theme-preview-color" 
-                 style="background-color: ${colors.warning}" 
-                 title="Avertissement"
-                 data-color="warning"></div>
-            <div class="theme-preview-color" 
-                 style="background-color: ${colors.danger}" 
-                 title="Danger"
-                 data-color="danger"></div>
-            <div class="theme-preview-color" 
-                 style="background-color: ${colors.quaternary}" 
-                 title="Quaternaire"
-                 data-color="quaternary"></div>
-        </div>
-        <div class="theme-preview-secondary-colors">
-            <div class="theme-secondary-color" 
-                 style="background-color: ${colors.quinary}" 
-                 title="Quinary"></div>
-            <div class="theme-secondary-color" 
-                 style="background-color: ${colors.senary}" 
-                 title="Senary"></div>
-            <div class="theme-secondary-color" 
-                 style="background-color: ${colors.septenary}" 
-                 title="Septenary"></div>
-            <div class="theme-secondary-color" 
-                 style="background-color: ${colors.info}" 
-                 title="Info"></div>
-        </div>
-        <div class="theme-preview-description">${themeInfo.description}</div>
-        <div class="theme-preview-background-sample" 
-             style="background: ${colors.background}; color: ${colors.text};">
-            <span>Aperçu du texte</span>
-        </div>
-    `;
-    
-    // Gestionnaire de clic pour appliquer le thème
-    preview.addEventListener('click', () => {
-        this.changeTheme(theme);
-    });
-    
-    return preview;
-}
-
-static getThemeColorsComplete(theme) {
-    if (!this.themes[theme]) {
-        return this.extractCSSColors();
-    }
-
-    // Si c'est le thème actuel, extraire directement
-    if (theme === this.currentTheme) {
-        return this.extractCSSColors();
-    }
-
-    // Sinon, appliquer temporairement le thème
-    const originalTheme = this.currentTheme;
-    const tempElement = document.createElement('div');
-    tempElement.style.display = 'none';
-    
-    if (theme !== 'light') {
-        tempElement.setAttribute('data-theme', theme);
-    }
-    
-    document.body.appendChild(tempElement);
-    const computedStyle = getComputedStyle(tempElement);
-    
-    // Définir manuellement les couleurs par thème si les CSS vars ne sont pas disponibles
-    const themeColorMaps = {
-        light: {
-            primary: '#2563eb',
-            success: '#059669',
-            danger: '#dc2626',
-            warning: '#d97706',
-            info: '#0891b2',
-            accent: '#7c3aed',
-            background: '#f1f5f9',
-            surface: '#ffffff',
-            text: '#1e293b',
-            border: '#e2e8f0',
-            quaternary: '#ea580c',
-            quinary: '#0d9488',
-            senary: '#db2777',
-            septenary: '#4338ca'
-        },
-        aurora: {
-            primary: '#06b6d4',
-            success: '#10b981',
-            danger: '#f43f5e',
-            warning: '#f59e0b',
-            info: '#3b82f6',
-            accent: '#8b5cf6',
-            background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 50%, #f0f9ff 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#065f46',
-            border: '#a7f3d0',
-            quaternary: '#06b6d4',
-            quinary: '#10b981',
-            senary: '#f43f5e',
-            septenary: '#8b5cf6'
-        },
-        volcanic: {
-            primary: '#dc2626',
-            success: '#059669',
-            danger: '#ef4444',
-            warning: '#f59e0b',
-            info: '#0ea5e9',
-            accent: '#f97316',
-            background: 'linear-gradient(135deg, #fef2f2 0%, #fff7ed 50%, #fefbf0 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#7f1d1d',
-            border: '#fecaca',
-            quaternary: '#eab308',
-            quinary: '#dc2626',
-            senary: '#c2410c',
-            septenary: '#ea580c'
-        },
-        midnight: {
-            primary: '#0ea5e9',
-            success: '#10b981',
-            danger: '#f43f5e',
-            warning: '#fbbf24',
-            info: '#06b6d4',
-            accent: '#8b5cf6',
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
-            surface: 'rgba(30, 41, 59, 0.95)',
-            text: '#e2e8f0',
-            border: '#334155',
-            quaternary: '#06b6d4',
-            quinary: '#10b981',
-            senary: '#f43f5e',
-            septenary: '#0ea5e9'
-        },
-        golden: {
-            primary: '#d97706',
-            success: '#059669',
-            danger: '#dc2626',
-            warning: '#eab308',
-            info: '#0891b2',
-            accent: '#f59e0b',
-            background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#78350f',
-            border: '#fed7aa',
-            quaternary: '#eab308',
-            quinary: '#d97706',
-            senary: '#c2410c',
-            septenary: '#ea580c'
-        },
-        emerald: {
-            primary: '#059669',
-            success: '#10b981',
-            danger: '#dc2626',
-            warning: '#d97706',
-            info: '#0891b2',
-            accent: '#84cc16',
-            background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #a7f3d0 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#064e3b',
-            border: '#a7f3d0',
-            quaternary: '#059669',
-            quinary: '#10b981',
-            senary: '#22c55e',
-            septenary: '#65a30d'
-        },
-        cosmic: {
-            primary: '#8b5cf6',
-            success: '#10b981',
-            danger: '#f43f5e',
-            warning: '#f59e0b',
-            info: '#06b6d4',
-            accent: '#a855f7',
-            background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#581c87',
-            border: '#d8b4fe',
-            quaternary: '#8b5cf6',
-            quinary: '#a855f7',
-            senary: '#c084fc',
-            septenary: '#7c3aed'
-        },
-        sakura: {
-            primary: '#ec4899',
-            success: '#059669',
-            danger: '#dc2626',
-            warning: '#f59e0b',
-            info: '#06b6d4',
-            accent: '#f472b6',
-            background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#831843',
-            border: '#fbcfe8',
-            quaternary: '#ec4899',
-            quinary: '#f472b6',
-            senary: '#f9a8d4',
-            septenary: '#db2777'
-        },
-        arctic: {
-            primary: '#0ea5e9',
-            success: '#10b981',
-            danger: '#f43f5e',
-            warning: '#f59e0b',
-            info: '#06b6d4',
-            accent: '#06b6d4',
-            background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#0c4a6e',
-            border: '#bae6fd',
-            quaternary: '#0ea5e9',
-            quinary: '#06b6d4',
-            senary: '#0891b2',
-            septenary: '#0284c7'
-        },
-        royal: {
-            primary: '#1e40af',
-            success: '#059669',
-            danger: '#dc2626',
-            warning: '#f59e0b',
-            info: '#0891b2',
-            accent: '#3b82f6',
-            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#1e3a8a',
-            border: '#bfdbfe',
-            quaternary: '#1e40af',
-            quinary: '#2563eb',
-            senary: '#3b82f6',
-            septenary: '#1d4ed8'
-        },
-        sunset: {
-            primary: '#ea580c',
-            success: '#059669',
-            danger: '#dc2626',
-            warning: '#f59e0b',
-            info: '#0891b2',
-            accent: '#f97316',
-            background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)',
-            surface: 'rgba(255, 255, 255, 0.95)',
-            text: '#9a3412',
-            border: '#fed7aa',
-            quaternary: '#ea580c',
-            quinary: '#f97316',
-            senary: '#fb923c',
-            septenary: '#c2410c'
-        },
-        monochrome: {
-            primary: '#374151',
-            success: '#059669',
-            danger: '#dc2626',
-            warning: '#f59e0b',
-            info: '#0891b2',
-            accent: '#6b7280',
-            background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 50%, #e5e7eb 100%)',
-            surface: 'rgba(255, 255, 255, 0.98)',
-            text: '#111827',
-            border: '#d1d5db',
-            quaternary: '#374151',
-            quinary: '#4b5563',
-            senary: '#6b7280',
-            septenary: '#1f2937'
-        },
-        cyber: {
-            primary: '#00f5ff',
-            success: '#00ff88',
-            danger: '#ff0066',
-            warning: '#ffff00',
-            info: '#8000ff',
-            accent: '#ff00ff',
-            background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%)',
-            surface: 'rgba(26, 26, 46, 0.95)',
-            text: '#00f5ff',
-            border: '#1a1a2e',
-            quaternary: '#00f5ff',
-            quinary: '#00ff88',
-            senary: '#ff0066',
-            septenary: '#8000ff'
+        // 2. Vérifier la préférence système
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            this.applyTheme('midnight');
+            return 'midnight';
         }
-    };
 
-    document.body.removeChild(tempElement);
-    
-    return themeColorMaps[theme] || themeColorMaps.light;
-}
-    /**
-     * Génère une grille d'aperçu de tous les thèmes
-     * @returns {HTMLElement} - Grille d'aperçu
-     */
-    static createThemeGrid() {
-        const grid = document.createElement('div');
-        grid.className = 'themes-grid';
-        
-        Object.keys(this.themes).forEach(themeKey => {
-            const preview = this.createThemePreview(themeKey);
-            grid.appendChild(preview);
-        });
-        
-        return grid;
+        // 3. Thème par défaut
+        this.applyTheme('light');
+        return 'light';
     }
 }
-
-// Exporter pour une utilisation globale
-window.ThemeManager = ThemeManager;

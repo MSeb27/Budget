@@ -512,16 +512,87 @@ setupEventListeners() {
 
     // ===== METHODES THEME =====
     
+	// ===== METHODES THEME - VERSION CORRIGÉE =====
+    
     /**
      * Initialise le système de thèmes 
      */
     initializeModernThemes() {
-        // Charger le thème sauvegardé
-        const savedTheme = ThemeManager.loadTheme();
-        
-        // Initialiser le gestionnaire avec callback
-        ThemeManager.init(savedTheme, (theme, themeInfo) => {
-            console.log(`Thème changé: ${themeInfo.name} (${theme})`);
+        try {
+            // Charger le thème sauvegardé
+            const savedTheme = ThemeManager.loadTheme();
+            
+            // Initialiser le gestionnaire avec callback
+            ThemeManager.init(savedTheme, (theme, themeInfo) => {
+                console.log(`Thème changé: ${themeInfo.name} (${theme})`);
+                
+                // Mettre à jour les graphiques si nécessaire
+                if (this.chartsInitialized) {
+                    setTimeout(() => {
+                        this.updateCharts();
+                    }, 100);
+                }
+            });
+
+            // Configurer le sélecteur de thème s'il existe
+            if (this.elements && this.elements.themeSelect) {
+                console.log('🎨 Configuration du sélecteur de thème...');
+                ThemeManager.setupThemeSelector(this.elements.themeSelect, true);
+                console.log('✅ Sélecteur de thème configuré');
+            } else {
+                console.warn('⚠️ Sélecteur de thème non trouvé, thèmes disponibles via raccourcis clavier uniquement');
+                
+                // Tenter de trouver le sélecteur directement
+                const themeSelect = document.getElementById('theme-select');
+                if (themeSelect) {
+                    console.log('🔄 Sélecteur de thème trouvé directement');
+                    ThemeManager.setupThemeSelector(themeSelect, true);
+                    // Sauvegarder la référence
+                    if (this.elements) {
+                        this.elements.themeSelect = themeSelect;
+                    }
+                }
+            }
+
+            // Configurer les événements de thème
+            this.setupThemeEventListeners();
+            
+            console.log('✅ Système de thèmes initialisé');
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'initialisation des thèmes:', error);
+            
+            // Fallback: appliquer le thème par défaut
+            try {
+                ThemeManager.applyTheme('light');
+                console.log('🔄 Thème par défaut appliqué en récupération');
+            } catch (fallbackError) {
+                console.error('❌ Impossible d\'appliquer le thème par défaut:', fallbackError);
+            }
+        }
+    }
+
+    /**
+     * Configuration des événements de thème
+     */
+    setupThemeEventListeners() {
+        // Écouter les événements de thème personnalisés
+        document.addEventListener('themechange', (event) => {
+            const { theme, themeInfo } = event.detail;
+            console.log(`📢 Événement de changement de thème reçu: ${themeInfo.name}`);
+            
+            // Mettre à jour le thème actuel
+            this.currentTheme = theme;
+            
+            // Sauvegarder le thème
+            try {
+                StorageManager.saveTheme(theme);
+            } catch (error) {
+                console.warn('⚠️ Impossible de sauvegarder le thème:', error);
+            }
+            
+            // Mettre à jour l'aperçu des couleurs
+            this.updateThemePreview();
             
             // Mettre à jour les graphiques si nécessaire
             if (this.chartsInitialized) {
@@ -531,9 +602,198 @@ setupEventListeners() {
             }
         });
 
-        // Configurer le sélecteur de thème
-        if (this.elements.themeSelect) {
-            ThemeManager.setupThemeSelector(this.elements.themeSelect, true);
+        // Ajouter des boutons de thème rapide s'ils n'existent pas
+        this.addQuickThemeButtons();
+    }
+
+    /**
+     * Ajoute des boutons de thème rapide dans l'interface
+     */
+    addQuickThemeButtons() {
+        // Chercher un conteneur pour les boutons de thème rapide
+        const settingsContainer = document.querySelector('.settings-container');
+        const themeCard = document.querySelector('.settings-card h3');
+        
+        if (settingsContainer && themeCard && themeCard.textContent.includes('Apparence')) {
+            const themeCardContainer = themeCard.parentElement;
+            
+            // Vérifier si les boutons n'existent pas déjà
+            if (!themeCardContainer.querySelector('.quick-theme-buttons')) {
+                const quickButtonsContainer = document.createElement('div');
+                quickButtonsContainer.className = 'quick-theme-buttons';
+                quickButtonsContainer.innerHTML = `
+                    <div class="quick-theme-actions">
+                        <button class="btn-secondary quick-theme-btn" onclick="ThemeManager.toggleDarkMode()">
+                            🌙/☀️ Mode Sombre/Clair
+                        </button>
+                        <button class="btn-secondary quick-theme-btn" onclick="ThemeManager.randomTheme()">
+                            🎲 Thème Aléatoire
+                        </button>
+                        <button class="btn-secondary quick-theme-btn" onclick="ThemeManager.nextTheme()">
+                            ➡️ Thème Suivant
+                        </button>
+                    </div>
+                    <div class="theme-shortcuts-info">
+                        <small>🎹 Raccourcis: Ctrl+Shift+D (sombre), Ctrl+Shift+T (suivant), Ctrl+Shift+R (aléatoire)</small>
+                    </div>
+                `;
+                
+                // Ajouter le CSS pour les boutons rapides
+                const style = document.createElement('style');
+                style.textContent = `
+                    .quick-theme-buttons {
+                        margin: 15px 0;
+                        padding: 15px;
+                        background: var(--surface);
+                        border: 1px solid var(--border-color);
+                        border-radius: 8px;
+                    }
+                    .quick-theme-actions {
+                        display: flex;
+                        gap: 10px;
+                        flex-wrap: wrap;
+                        margin-bottom: 10px;
+                    }
+                    .quick-theme-btn {
+                        flex: 1;
+                        min-width: 120px;
+                        padding: 8px 12px;
+                        font-size: 12px;
+                        white-space: nowrap;
+                    }
+                    .theme-shortcuts-info {
+                        color: var(--text-color);
+                        opacity: 0.7;
+                        text-align: center;
+                        line-height: 1.4;
+                    }
+                    @media (max-width: 768px) {
+                        .quick-theme-actions {
+                            flex-direction: column;
+                        }
+                        .quick-theme-btn {
+                            min-width: auto;
+                        }
+                    }
+                `;
+                
+                document.head.appendChild(style);
+                
+                // Insérer après le sélecteur de thème
+                const themeSelector = themeCardContainer.querySelector('.theme-selector');
+                if (themeSelector) {
+                    themeSelector.parentNode.insertBefore(quickButtonsContainer, themeSelector.nextSibling);
+                } else {
+                    themeCardContainer.appendChild(quickButtonsContainer);
+                }
+                
+                console.log('✅ Boutons de thème rapide ajoutés');
+            }
+        }
+    }
+
+    /**
+     * Change de thème
+     */
+    changeTheme(newTheme) {
+        try {
+            if (ThemeManager.changeTheme(newTheme)) {
+                this.currentTheme = newTheme;
+                
+                // Animation de transition
+                document.body.classList.add('theme-transition-active');
+                setTimeout(() => {
+                    document.body.classList.remove('theme-transition-active');
+                }, 300);
+                
+                // Mettre à jour l'aperçu des couleurs
+                this.updateThemePreview();
+                
+                console.log(`✅ Thème changé vers: ${newTheme}`);
+                return true;
+            }
+        } catch (error) {
+            console.error('❌ Erreur lors du changement de thème:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Applique un thème
+     */
+    applyTheme(theme) {
+        try {
+            ThemeManager.applyTheme(theme);
+            this.currentTheme = theme;
+            
+            // Mettre à jour les graphiques si nécessaire
+            if (this.chartsInitialized) {
+                setTimeout(() => {
+                    this.updateCharts();
+                }, 100);
+            }
+            
+            // Mettre à jour l'aperçu des couleurs
+            this.updateThemePreview();
+            
+            console.log(`✅ Thème appliqué: ${theme}`);
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'application du thème:', error);
+        }
+    }
+
+    /**
+     * Met à jour l'aperçu des couleurs dans les paramètres
+     */
+    updateThemePreview() {
+        const previewCard = document.querySelector('.preview-card');
+        if (previewCard) {
+            // Déclencher l'animation
+            previewCard.style.animation = 'none';
+            previewCard.offsetHeight; // Force reflow
+            previewCard.style.animation = 'themePreviewUpdate 0.5s ease-out';
+        }
+
+        // Mettre à jour les couleurs de prévisualisation
+        this.updateThemePreviewColors();
+    }
+
+    /**
+     * Met à jour les couleurs de prévisualisation dans l'interface
+     */
+    updateThemePreviewColors() {
+        try {
+            const colors = ThemeManager.extractCSSColors();
+            
+            // Mettre à jour les éléments de prévisualisation
+            const previewElements = {
+                '.preview-primary': colors.primary,
+                '.preview-secondary': colors.success,
+                '.preview-accent': colors.accent,
+                '.preview-quaternary': colors.quaternary,
+                '.preview-quinary': colors.quinary,
+                '.preview-senary': colors.senary,
+                '.preview-septenary': colors.septenary,
+                '.preview-warning': colors.warning,
+                '.preview-danger': colors.danger,
+                '.preview-info': colors.info
+            };
+
+            Object.entries(previewElements).forEach(([selector, color]) => {
+                const element = document.querySelector(selector);
+                if (element && color) {
+                    element.style.backgroundColor = color;
+                }
+            });
+
+            // Mettre à jour l'échantillon de texte
+            const textSample = document.querySelector('.preview-text-sample');
+            if (textSample) {
+                textSample.style.background = colors.background;
+                textSample.style.color = colors.text;
+            }
+        } catch (error) {
+            console.warn('⚠️ Impossible de mettre à jour l\'aperçu des couleurs:', error);
         }
     }
 
@@ -860,44 +1120,62 @@ updateThemePreview() {
     }
 	}
 
-    // ===== initializeElements =====
-	initializeElements() {
-		this.elements = {};
-		
-		const elementIds = [
-'prev-month', 'next-month', 'month-year', 'calendar-grid',
-    'month-income', 'month-expenses', 'month-balance', 'total-balance',
-    'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
-	'date',
-    'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-impot', 'fixed-autres',
-    'fixed-assurance-maison', 'fixed-assurance-voiture', 'fixed-total-display',
-    'export-data', 'import-data', 'import-file', 'clear-data', 'theme-select',
-    'expense-label', 'income-label'
-		];
-	
-		elementIds.forEach(id => {
-			const element = document.getElementById(id);
-			if (element) {
-				// Convertir les tirets en camelCase pour les propriétés
-				const propName = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-				this.elements[propName] = element;
-			} else {
-				console.warn(`⚠️ Élément non trouvé: ${id}`);
-			}
-		});
-	
-		// Éléments spéciaux
-		this.elements.tabBtns = document.querySelectorAll('.tab-btn') || [];
-		this.elements.tabContents = document.querySelectorAll('.tab-content') || [];
-		
-		// Alias pour compatibilité avec le code existant
-		this.elements.exportBtn = this.elements.exportData;
-		this.elements.importBtn = this.elements.importData;
-		this.elements.clearBtn = this.elements.clearData;
-		
-		console.log('✅ Éléments DOM initialisés:', Object.keys(this.elements).length, 'éléments trouvés');
-	}
 
+// ===== initializeElements - VERSION CORRIGÉE =====
+    initializeElements() {
+        this.elements = {};
+        
+        const elementIds = [
+            // Navigation du calendrier
+            'prev-month', 'next-month', 'month-year', 'calendar-grid',
+            
+            // Résumés financiers
+            'month-income', 'month-expenses', 'month-balance', 'total-balance',
+            
+            // Section des transactions
+            'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
+            
+            // Dépenses fixes
+            'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-impot', 'fixed-autres',
+            'fixed-assurance-maison', 'fixed-assurance-voiture', 'fixed-total-display',
+            
+            // Actions sur les données
+            'export-data', 'import-data', 'import-file', 'clear-data', 
+            
+            // Sélecteur de thème
+            'theme-select'
+            
+            // ELEMENTS RETIRÉS CAR NON PRÉSENTS DANS LE HTML:
+            // 'date', 'expense-label', 'income-label'
+        ];
+    
+        elementIds.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                // Convertir les tirets en camelCase pour les propriétés
+                const propName = id.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+                this.elements[propName] = element;
+            } else {
+                console.warn(`⚠️ Élément non trouvé: ${id}`);
+            }
+        });
+    
+        // Éléments spéciaux (collections)
+        this.elements.tabBtns = document.querySelectorAll('.tab-btn') || [];
+        this.elements.tabContents = document.querySelectorAll('.tab-content') || [];
+        
+        // Alias pour compatibilité avec le code existant
+        this.elements.exportBtn = this.elements.exportData;
+        this.elements.importBtn = this.elements.importData;
+        this.elements.clearBtn = this.elements.clearData;
+        
+        console.log('✅ Éléments DOM initialisés:', Object.keys(this.elements).length, 'éléments trouvés');
+        
+        // Vérifier si le sélecteur de thème existe
+        if (!this.elements.themeSelect) {
+            console.warn('⚠️ Sélecteur de thème non trouvé dans le HTML');
+        }
+    }
 
     // ===== TRANSACTION METHODS =====
   
