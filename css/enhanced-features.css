@@ -1691,3 +1691,676 @@ mark {
         justify-content: center;
     }
 }
+
+/* ===== INDICATEUR D'AJOUT MODERNE (COMPATIBLE TOUS THÈMES) ===== */
+.add-transaction-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.3s ease;
+    box-shadow: 0 3px 12px rgba(var(--primary-color-rgb, 37, 99, 235), 0.4);
+    z-index: 10;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Création du + avec des pseudo-éléments */
+.add-transaction-indicator::before {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 2px;
+    background: var(--surface, white);
+    border-radius: 1px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.add-transaction-indicator::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 12px;
+    background: var(--surface, white);
+    border-radius: 1px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation au hover */
+.add-transaction-indicator:hover {
+    background: linear-gradient(135deg, var(--primary-hover), var(--accent-color, var(--primary-color)));
+    transform: scale(1.15) rotate(90deg);
+    box-shadow: 0 4px 16px rgba(var(--primary-color-rgb, 37, 99, 235), 0.6);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.add-transaction-indicator:hover::before,
+.add-transaction-indicator:hover::after {
+    background: var(--surface, rgba(255, 255, 255, 0.95));
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Affichage de l'indicateur au survol de la case */
+.calendar-day:hover .add-transaction-indicator {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+/* Animation d'apparition fluide */
+.calendar-day:hover .add-transaction-indicator {
+    animation: fadeInScale 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes fadeInScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) rotate(-180deg);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1) rotate(0deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1.05) rotate(0deg);
+    }
+}
+
+/* Animation de clic */
+.add-transaction-indicator:active {
+    transform: scale(0.95) rotate(90deg);
+    transition: transform 0.1s ease;
+}
+
+/* Adaptation automatique pour thèmes sombres */
+[data-theme*="dark"] .add-transaction-indicator,
+[data-theme*="midnight"] .add-transaction-indicator,
+[data-theme*="ocean"] .add-transaction-indicator {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 3px 12px rgba(var(--primary-color-rgb, 37, 99, 235), 0.3);
+}
+
+[data-theme*="dark"] .add-transaction-indicator:hover,
+[data-theme*="midnight"] .add-transaction-indicator:hover,
+[data-theme*="ocean"] .add-transaction-indicator:hover {
+    box-shadow: 0 4px 16px rgba(var(--primary-color-rgb, 37, 99, 235), 0.5);
+}
+
+/* Pour les thèmes avec couleurs spéciales */
+[data-theme*="green"] .add-transaction-indicator::before,
+[data-theme*="green"] .add-transaction-indicator::after,
+[data-theme*="pink"] .add-transaction-indicator::before,
+[data-theme*="pink"] .add-transaction-indicator::after,
+[data-theme*="orange"] .add-transaction-indicator::before,
+[data-theme*="orange"] .add-transaction-indicator::after {
+    background: white;
+}
+
+/* Responsive - Plus petit sur mobile */
+@media (max-width: 768px) {
+    .add-transaction-indicator {
+        width: 20px;
+        height: 20px;
+        top: 4px;
+        right: 4px;
+    }
+    
+    .add-transaction-indicator::before {
+        width: 10px;
+        height: 1.5px;
+    }
+    
+    .add-transaction-indicator::after {
+        width: 1.5px;
+        height: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Toujours visible sur très petit écran */
+    .calendar-day .add-transaction-indicator {
+        opacity: 0.8;
+    }
+    
+    .calendar-day:hover .add-transaction-indicator {
+        opacity: 1;
+    }
+}
+
+/* ===== MODAL DE TRANSACTION ===== */
+.transaction-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+    }
+}
+
+.transaction-modal {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    max-width: 500px;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===== HEADER DE LA MODAL (même style que les stats) ===== */
+.transaction-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.transaction-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.transaction-modal-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    font-style: italic;
+    margin-top: 4px;
+    width: 100%;
+    order: 2;
+    text-transform: capitalize;
+}
+
+.modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 20px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+/* ===== CONTENU DE LA MODAL ===== */
+.transaction-modal-content {
+    padding: 20px;
+}
+
+.modal-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.modal-form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-form-group label {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-color);
+    font-size: 13px;
+}
+
+.modal-form-group input,
+.modal-form-group select {
+    padding: 10px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: var(--transition);
+    background: var(--surface);
+    color: var(--text-color);
+}
+
+.modal-form-group input:focus,
+.modal-form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+/* ===== RADIO BUTTONS DANS LA MODAL (alignés avec le montant) ===== */
+.modal-radio-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    height: 44px; /* Même hauteur que l'input montant */
+}
+
+.modal-radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 4px;
+    transition: var(--transition);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.modal-radio-label:hover {
+    background: var(--light-color);
+}
+
+.modal-radio-label.expense-option input[type="radio"]:checked ~ .radio-custom {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.modal-radio-label.income-option input[type="radio"]:checked ~ .radio-custom {
+    background: var(--success-color);
+    border-color: var(--success-color);
+}
+
+/* Style pour les radio buttons personnalisés */
+.modal-radio-label input[type="radio"] {
+    display: none;
+}
+
+.radio-custom {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    position: relative;
+}
+
+.radio-custom::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.modal-radio-label input[type="radio"]:checked ~ .radio-custom::after {
+    opacity: 1;
+}
+
+/* ===== ACTIONS DE LA MODAL ===== */
+.modal-form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.modal-form-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    min-width: 100px;
+}
+
+.modal-form-actions .btn-secondary {
+    background: var(--light-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.modal-form-actions .btn-secondary:hover {
+    background: var(--border-color);
+}
+
+.modal-form-actions .btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.modal-form-actions .btn-success:hover {
+    background: var(--success-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* ===== MESSAGE D'ERREUR DANS LA MODAL ===== */
+.modal-error-message {
+    color: var(--danger-color);
+    font-size: 12px;
+    margin-top: 10px;
+    padding: 8px;
+    background: rgba(220, 53, 69, 0.1);
+    border-radius: 4px;
+    border-left: 3px solid var(--danger-color);
+    display: none;
+}
+
+.modal-error-message:not(:empty) {
+    display: block;
+}
+
+/* ===== RESPONSIVE DESIGN POUR LA MODAL ===== */
+@media (max-width: 768px) {
+    .transaction-modal-overlay {
+        padding: 10px;
+    }
+    
+    .transaction-modal {
+        max-width: 100%;
+        max-height: 90vh;
+    }
+    
+    .modal-form-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .transaction-modal-header {
+        padding: 15px;
+    }
+    
+    .transaction-modal-content {
+        padding: 15px;
+    }
+    
+    .modal-radio-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .modal-form-actions {
+        flex-direction: column-reverse;
+    }
+    
+    .modal-form-actions button {
+        width: 100%;
+    }
+}
+
+/* ===== AMÉLIORATIONS POUR L'ACCESSIBILITÉ ===== */
+.transaction-modal:focus-within {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .transaction-modal-overlay,
+    .transaction-modal,
+    .add-transaction-indicator {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ===== ÉTATS DE CHARGEMENT ===== */
+.modal-form-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.modal-form-actions button.loading::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    margin-left: 8px;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===== NOUVEAU LAYOUT BUDGET SANS SIDEBAR ===== */
+.budget-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.calendar-section {
+    width: 100%;
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* ===== OPTIMISATION DU CALENDRIER POUR PLUS D'ESPACE ===== */
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px; /* Légèrement plus d'espace */
+    background: var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.calendar-day {
+    background: var(--surface);
+    min-height: 120px; /* Hauteur augmentée pour plus de lisibilité */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ===== AMÉLIORATION DE L'INDICATEUR + AVEC PLUS D'ESPACE ===== */
+.add-transaction-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px; /* Taille augmentée */
+    height: 24px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px; /* Plus gros */
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    z-index: 10;
+}
+
+.add-transaction-indicator:hover {
+    background: var(--primary-hover);
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+}
+
+/* Affichage de l'indicateur au survol avec une animation plus fluide */
+.calendar-day:hover .add-transaction-indicator {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+/* ===== RESPONSIVE AMÉLIORÉ POUR LE NOUVEAU LAYOUT ===== */
+@media (max-width: 1200px) {
+    .calendar-day {
+        min-height: 100px;
+        padding: 8px;
+    }
+    
+    .add-transaction-indicator {
+        width: 22px;
+        height: 22px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .calendar-section {
+        padding: 15px;
+    }
+    
+    .calendar-day {
+        min-height: 80px;
+        padding: 6px;
+    }
+    
+    .add-transaction-indicator {
+        width: 20px;
+        height: 20px;
+        top: 4px;
+        right: 4px;
+        font-size: 12px;
+    }
+    
+    .calendar-grid {
+        gap: 2px;
+    }
+}
+
+@media (max-width: 480px) {
+    .calendar-day {
+        min-height: 70px;
+        padding: 4px;
+    }
+    
+    .add-transaction-indicator {
+        width: 18px;
+        height: 18px;
+        font-size: 11px;
+    }
+    
+    /* Rendre l'indicateur toujours visible sur mobile */
+    .calendar-day .add-transaction-indicator {
+        opacity: 0.7;
+    }
+    
+    .calendar-day:hover .add-transaction-indicator {
+        opacity: 1;
+    }
+}
+
+/* ===== ANIMATION D'ENTRÉE POUR LE NOUVEAU LAYOUT ===== */
+.calendar-section {
+    animation: slideInFromLeft 0.5s ease-out;
+}
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ===== INDICATION VISUELLE POUR GUIDER L'UTILISATEUR ===== */
+.calendar-day::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: radial-gradient(circle, rgba(var(--primary-color-rgb), 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.calendar-day:hover::after {
+    width: 60px;
+    height: 60px;
+}
+
+/* ===== OPTIMISATION POUR LES GRANDS ÉCRANS ===== */
+@media (min-width: 1400px) {
+    .calendar-day {
+        min-height: 140px;
+        padding: 12px;
+    }
+    
+    .add-transaction-indicator {
+        width: 26px;
+        height: 26px;
+        font-size: 18px;
+        top: 8px;
+        right: 8px;
+    }
+    
+    .day-number {
+        font-size: 16px;
+    }
+}

@@ -36,9 +36,7 @@ class BudgetCalendar {
         this.setupTabNavigation();
         this.initializeModernThemes();
         
-        this.setDefaultDate();
         this.loadFixedExpensesValues();
-        this.updateRadioStyles();
         
         // Initialiser les gestionnaires AVANT les charts
         this.initializeManagers();
@@ -216,7 +214,7 @@ setupEventListeners() {
         console.log('🔧 Configuration des event listeners...'); 
         
         // Vérifier que les éléments existent avant d'ajouter les listeners 
-        const elements = [ 'prev-month', 'next-month', 'transaction-form', 'amount', 'category', 'label', 'date' ]; 
+        const elements = [ 'prev-month', 'next-month']; 
         elements.forEach(id => { 
             const element = document.getElementById(id); 
             if (!element) { 
@@ -224,11 +222,7 @@ setupEventListeners() {
             } 
         }); 
         
-        // Form submission (méthode alternative qui utilise this.elements)
-        if (this.elements.form) {
-            this.elements.form.addEventListener('submit', (e) => this.handleSubmit(e));
-        }
-        
+       
         // Calendar navigation (méthode alternative qui utilise this.elements)
         if (this.elements.prevMonth) {
             this.elements.prevMonth.addEventListener('click', () => this.previousMonth());
@@ -279,19 +273,6 @@ setupEventListeners() {
             this.elements.clearData.addEventListener('click', () => this.clearAllData());
         }
         
-        // Category change listener for auto type selection
-        if (this.elements.category) {
-            this.elements.category.addEventListener('change', () => this.updateTypeBasedOnCategory());
-        }
-        
-        // Radio button listeners for visual updates
-        if (this.elements.typeExpense) {
-            this.elements.typeExpense.addEventListener('change', () => this.updateRadioStyles());
-        }
-        if (this.elements.typeIncome) {
-            this.elements.typeIncome.addEventListener('change', () => this.updateRadioStyles());
-        }
-
         // Theme listener
         this.setupThemeEventListeners();
         
@@ -299,10 +280,6 @@ setupEventListeners() {
     }
 
     // ===== UTILITY METHODS =====
-    setDefaultDate() {
-        const today = new Date();
-        this.elements.date.valueAsDate = today;
-    }
 
     updateTypeBasedOnCategory() {
 		const category = this.elements.category.value;
@@ -334,7 +311,6 @@ setupEventListeners() {
 		// 3. AFFECTER AUTOMATIQUEMENT LE MONTANT DES DÉPENSES CONTRAINTES
 		this.autoFillConstrainedExpense(category);
 		
-		this.updateRadioStyles();
 	}
 	
 	autoFillConstrainedExpense(category) {
@@ -362,24 +338,6 @@ setupEventListeners() {
 		}
 	}
 
-    updateRadioStyles() {
-        // Vérifier que les éléments existent
-        if (!this.elements.expenseLabel || !this.elements.incomeLabel) {
-            console.warn('Radio label elements not found');
-            return;
-        }
-        
-        // Retirer les classes précédentes
-        this.elements.expenseLabel.classList.remove('checked');
-        this.elements.incomeLabel.classList.remove('checked');
-        
-        // Ajouter la classe checked au bon label
-        if (this.elements.typeExpense.checked) {
-            this.elements.expenseLabel.classList.add('checked');
-        } else if (this.elements.typeIncome.checked) {
-            this.elements.incomeLabel.classList.add('checked');
-        }
-    }
 
     isSameDate(date1, date2) {
         return date1.getFullYear() === date2.getFullYear() &&
@@ -907,15 +865,14 @@ updateThemePreview() {
 		this.elements = {};
 		
 		const elementIds = [
-			'transaction-form', 'label', 'amount', 'category', 'date',
-			'type-expense', 'type-income', 'error-message',
-			'prev-month', 'next-month', 'month-year', 'calendar-grid',
-			'month-income', 'month-expenses', 'month-balance', 'total-balance',
-			'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
-			'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-impot', 'fixed-autres',
-			'fixed-assurance-maison', 'fixed-assurance-voiture', 'fixed-total-display',
-			'export-data', 'import-data', 'import-file', 'clear-data', 'theme-select',
-			'expense-label', 'income-label'
+'prev-month', 'next-month', 'month-year', 'calendar-grid',
+    'month-income', 'month-expenses', 'month-balance', 'total-balance',
+    'transactions-title', 'selected-day-info', 'transactions-list', 'no-transactions',
+	'date',
+    'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit', 'fixed-impot', 'fixed-autres',
+    'fixed-assurance-maison', 'fixed-assurance-voiture', 'fixed-total-display',
+    'export-data', 'import-data', 'import-file', 'clear-data', 'theme-select',
+    'expense-label', 'income-label'
 		];
 	
 		elementIds.forEach(id => {
@@ -934,7 +891,6 @@ updateThemePreview() {
 		this.elements.tabContents = document.querySelectorAll('.tab-content') || [];
 		
 		// Alias pour compatibilité avec le code existant
-		this.elements.form = this.elements.transactionForm;
 		this.elements.exportBtn = this.elements.exportData;
 		this.elements.importBtn = this.elements.importData;
 		this.elements.clearBtn = this.elements.clearData;
@@ -944,76 +900,7 @@ updateThemePreview() {
 
 
     // ===== TRANSACTION METHODS =====
-    handleSubmit(e) {
-		e.preventDefault();
-		this.elements.errorMessage.textContent = '';
-
-		const form = this.elements.form;
-		const isEditMode = form.dataset.editMode === 'true';
-		const editId = form.dataset.editId;
-
-		const transactionData = {
-			label: this.elements.label.value.trim(),
-			amount: parseFloat(this.elements.amount.value),
-			category: this.elements.category.value,
-			date: this.elements.date.value,
-			type: this.elements.typeExpense.checked ? 'expense' : 'income'
-		};
-
-		const error = this.validateTransaction(transactionData);
-		if (error) {
-			this.elements.errorMessage.textContent = error;
-			return;
-		}
-
-		try {
-			if (isEditMode && editId) {
-				// Mode édition
-				transactionData.id = parseInt(editId);
-            
-				if (this.transactionManager) {
-					// Utiliser le transaction manager si disponible
-					this.transactionManager.updateTransaction(editId, transactionData);
-					this.transactions = this.transactionManager.getAllTransactions();
-				} else {
-					// Fallback : mise à jour directe
-					const index = this.transactions.findIndex(t => t.id === parseInt(editId));
-					if (index !== -1) {
-						this.transactions[index] = { ...this.transactions[index], ...transactionData };
-						StorageManager.saveTransactions(this.transactions);
-					} else {
-						throw new Error('Transaction non trouvée pour modification');
-					}
-				}
-            
-				console.log('✅ Transaction modifiée avec succès');
-				this.cancelEdit(); // Sortir du mode édition
-			} else {
-				// Mode ajout normal
-				transactionData.id = Date.now();
-            
-				if (this.transactionManager) {
-					this.transactionManager.addTransaction(transactionData);
-					this.transactions = this.transactionManager.getAllTransactions();
-				} else {
-					this.transactions.push(transactionData);
-					StorageManager.saveTransactions(this.transactions);
-				}
-            
-				console.log('✅ Transaction ajoutée avec succès');
-				this.resetForm();
-			}
-
-			// Mettre à jour tous les composants
-			this.updateAllComponents();
-        
-		} catch (error) {
-			console.error('❌ Erreur lors de la sauvegarde:', error);
-			this.elements.errorMessage.textContent = error.message;
-		}
-	}
-
-
+  
     validateTransaction(transaction) {
         if (!transaction.label) return "Le libellé est obligatoire";
         if (isNaN(transaction.amount) || transaction.amount <= 0) return "Le montant doit être positif";
@@ -1022,31 +909,6 @@ updateThemePreview() {
         return null;
     }
 
-	resetForm() {
-		// Sauvegarder la date actuelle
-		const currentDate = this.elements.date.value;
-
-		// ⚠️ IMPORTANT: Désactiver temporairement les événements pour éviter les validations
-		const categoryChangeHandler = this.elements.category.onchange;
-		this.elements.category.onchange = null;
-    
-		this.elements.form.reset();
-		this.elements.typeExpense.checked = true; // Dépense par défaut
-    
-		// Restaurer la date au lieu de la réinitialiser
-		if (currentDate) {
-			this.elements.date.value = currentDate;
-		} else {
-			this.setDefaultDate();
-		}
-    
-		// ✅ Remettre les événements après un petit délai
-		setTimeout(() => {
-        this.elements.category.onchange = categoryChangeHandler;
-        this.updateRadioStyles(); // Mettre à jour l'apparence
-		}, 50);
-	}
-	
 	deleteTransaction(id) {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) {
         try {
@@ -1093,65 +955,12 @@ updateThemePreview() {
 			this.elements.typeExpense.checked = true;
 		}
     
-		// Mettre à jour l'affichage des radio buttons
-		this.updateRadioStyles();
     
 		// Passer en mode édition
 		this.setEditMode(id);
-    
-		// Scroll vers le formulaire pour l'UX
-		document.getElementById('transaction-form').scrollIntoView({ behavior: 'smooth' });
 	}
 	
-	setEditMode(transactionId) {
-		const form = this.elements.form;
-		const submitBtn = form.querySelector('button[type="submit"]');
-    
-		// Marquer le mode édition
-		form.dataset.editMode = 'true';
-		form.dataset.editId = transactionId;
-    
-		// Changer le texte et le style du bouton
-		if (submitBtn) {
-			submitBtn.innerHTML = '✏️ Modifier Transaction';
-			submitBtn.classList.add('btn-edit-mode');
-		}
-    
-		// Ajouter un bouton annuler s'il n'existe pas déjà
-		if (!form.querySelector('.btn-cancel-edit')) {
-			const cancelBtn = document.createElement('button');
-			cancelBtn.type = 'button';
-			cancelBtn.className = 'btn-cancel-edit btn-secondary';
-			cancelBtn.innerHTML = '❌ Annuler';
-			cancelBtn.onclick = () => this.cancelEdit();
-			submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
-		}
-	}
-
-	cancelEdit() {
-		const form = this.elements.form;
-		const submitBtn = form.querySelector('button[type="submit"]');
-		const cancelBtn = form.querySelector('.btn-cancel-edit');
-    
-		// Remettre en mode normal
-		delete form.dataset.editMode;
-		delete form.dataset.editId;
-    
-		// Restaurer le bouton submit
-		if (submitBtn) {
-			submitBtn.innerHTML = '➕ Ajouter Transaction';
-			submitBtn.classList.remove('btn-edit-mode');
-		}
-    
-		// Supprimer le bouton annuler
-		if (cancelBtn) {
-			cancelBtn.remove();
-		}
-    
-		// Vider le formulaire
-		this.resetForm();
-	}
-    // ===== CALENDAR METHODS =====
+ // ===== CALENDAR METHODS =====
     previousMonth() {
         this.currentDate.setMonth(this.currentDate.getMonth() - 1);
         this.selectedDate = null;
@@ -1174,7 +983,6 @@ updateThemePreview() {
 
     selectDate(date) {
         this.selectedDate = date;
-        this.elements.date.value = this.formatDateString(date);
         this.updateCalendar();
         this.updateTransactionsList();
     }
@@ -1230,7 +1038,7 @@ updateThemePreview() {
         this.updateTotalBalance();
     }
 
-    createCalendarDay(day, month, year, isOtherMonth) {
+createCalendarDay(day, month, year, isOtherMonth) {
         const dayElement = document.createElement('div');
         dayElement.className = 'calendar-day';
         
@@ -1257,6 +1065,23 @@ updateThemePreview() {
         dayNumber.className = 'day-number';
         dayNumber.textContent = day;
         dayElement.appendChild(dayNumber);
+
+        // ===== NOUVEL INDICATEUR D'AJOUT =====
+        // Ajouter l'indicateur "+" en haut à droite (seulement pour le mois courant)
+        if (!isOtherMonth) {
+            const addIndicator = document.createElement('div');
+            addIndicator.className = 'add-transaction-indicator';
+            addIndicator.innerHTML = ''; // Laisser vide, le + sera créé en CSS
+            addIndicator.title = 'Ajouter une transaction';
+            
+            // Event listener pour l'indicateur (empêche la propagation vers le clic sur la case)
+            addIndicator.addEventListener('click', (e) => {
+                e.stopPropagation(); // Empêche le clic sur la case
+                this.openTransactionModal(dayDate);
+            });
+            
+            dayElement.appendChild(addIndicator);
+        }
 
         // Get transactions for this day
         const dayTransactions = this.transactions.filter(t => t.date === dateString);
@@ -1291,18 +1116,471 @@ updateThemePreview() {
 
             const totalElement = document.createElement('div');
             totalElement.className = `day-total ${total >= 0 ? 'positive' : 'negative'}`;
-            totalElement.textContent = `${total >= 0 ? '+' : ''}${total.toFixed(0)}€`;
+            totalElement.textContent = `${total >= 0 ? '+' : ''}${total.toFixed(2)}€`;
             dayElement.appendChild(totalElement);
         }
 
-        // Click handler
-        dayElement.addEventListener('click', () => {
-            if (!isOtherMonth) {
+        // Click handler pour la case (affiche les transactions)
+        dayElement.addEventListener('click', (e) => {
+            // Seulement si ce n'est pas l'indicateur d'ajout qui a été cliqué
+            if (!e.target.classList.contains('add-transaction-indicator')) {
                 this.selectDate(dayDate);
             }
         });
 
         this.elements.calendarGrid.appendChild(dayElement);
+    }
+
+    // ===== NOUVELLE MÉTHODE POUR OUVRIR LA MODAL =====
+    openTransactionModal(date) {
+        // Formater la date pour l'affichage
+        const formattedDate = date.toLocaleDateString('fr-FR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Créer la modal
+        const modal = document.createElement('div');
+        modal.className = 'transaction-modal-overlay';
+        modal.innerHTML = `
+            <div class="transaction-modal">
+                <div class="transaction-modal-header">
+                    <h3>💰 Nouvelle transaction</h3>
+                    <div class="transaction-modal-subtitle">${formattedDate}</div>
+                    <button class="modal-close" onclick="this.closest('.transaction-modal-overlay').remove()">×</button>
+                </div>
+                <div class="transaction-modal-content">
+                    <form id="modal-transaction-form">
+                        <!-- Catégorie et Libellé -->
+                        <div class="modal-form-row">
+                            <div class="modal-form-group">
+                                <label for="modal-category">Catégorie</label>
+                                <select id="modal-category" required>
+                                    <option value="">Sélectionner...</option>
+                                    <option value="Alimentation">🍕 Alimentation</option>
+                                    <option value="Assurance maison">🏠🛡️ Assurance maison</option>
+                                    <option value="Assurance voiture">🚗🛡️ Assurance voiture</option>
+                                    <option value="Cigarettes">🚬 Cigarettes</option>
+                                    <option value="EDF-GDF">⚡ EDF-GDF</option>
+                                    <option value="Essence">⛽ Essence</option>
+                                    <option value="Impôt">🏛️ Impôt</option>
+                                    <option value="Internet">🌐 Internet</option>
+                                    <option value="Internet Outils">🔧 Internet Outils</option>
+                                    <option value="Logement">🏠 Logement</option>
+                                    <option value="Loisirs">🎬 Loisirs</option>
+                                    <option value="Loyer">🏠 Loyer</option>
+                                    <option value="Prêt">💳 Prêt</option>
+                                    <option value="Remboursement crédit">🏦 Remboursement crédit</option>
+                                    <option value="Retrait DAB">🏧 Retrait DAB</option>
+                                    <option value="Salaire">💼 Salaire</option>
+                                    <option value="Santé">🏥 Santé</option>
+                                    <option value="Transport">🚗 Transport</option>
+                                    <option value="Vêtements">👕 Vêtements</option>
+                                    <option value="Autres">📦 Autres</option>
+                                </select>
+                            </div>
+                            
+                            <div class="modal-form-group">
+                                <label for="modal-label">Libellé</label>
+                                <input type="text" id="modal-label" placeholder="Description" required />
+                            </div>
+                        </div>
+                        
+                        <!-- Montant et Type (sur la même ligne) -->
+                        <div class="modal-form-row">
+                            <div class="modal-form-group">
+                                <label for="modal-amount">Montant (€)</label>
+                                <input type="number" id="modal-amount" placeholder="0.00" step="0.01" required />
+                            </div>
+                            
+                            <div class="modal-form-group">
+                                <label>&nbsp;</label> <!-- Espace pour l'alignement -->
+                                <div class="modal-radio-group">
+                                    <label class="modal-radio-label expense-option">
+                                        <input type="radio" id="modal-type-expense" name="modal-type" value="expense" checked />
+                                        <span class="radio-custom"></span>
+                                        <span>💸 Dépense</span>
+                                    </label>
+                                    <label class="modal-radio-label income-option">
+                                        <input type="radio" id="modal-type-income" name="modal-type" value="income" />
+                                        <span class="radio-custom"></span>
+                                        <span>💰 Revenu</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Date (cachée et bloquée) -->
+                        <input type="hidden" id="modal-date" value="${this.formatDateString(date)}" />
+                        
+                        <!-- Boutons -->
+                        <div class="modal-form-actions">
+                            <button type="button" class="btn-secondary modal-cancel" onclick="this.closest('.transaction-modal-overlay').remove()">
+                                ❌ Annuler
+                            </button>
+                            <button type="submit" class="btn-success">
+                                ✅ Ajouter
+                            </button>
+                        </div>
+                        
+                        <div class="modal-error-message" id="modal-error-message"></div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        // Ajouter la modal au DOM
+        document.body.appendChild(modal);
+
+        // Setup des event listeners pour la modal
+        this.setupModalEventListeners(modal, date);
+
+        // Focus sur le premier champ
+        setTimeout(() => {
+            const categorySelect = modal.querySelector('#modal-category');
+            if (categorySelect) categorySelect.focus();
+        }, 100);
+
+        // Fermer en cliquant à l'extérieur
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    // ===== SETUP DES EVENT LISTENERS POUR LA MODAL =====
+    setupModalEventListeners(modal, date) {
+        const form = modal.querySelector('#modal-transaction-form');
+        const categorySelect = modal.querySelector('#modal-category');
+        const labelInput = modal.querySelector('#modal-label');
+        
+        // Auto-remplissage du libellé basé sur la catégorie
+        categorySelect.addEventListener('change', () => {
+            if (categorySelect.value && !labelInput.value) {
+                labelInput.value = categorySelect.value;
+            }
+            
+            // Auto-remplissage depuis les dépenses contraintes
+            this.autoFillConstrainedExpenseInModal(categorySelect.value, modal);
+        });
+
+        // Gestion de la soumission du formulaire
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleModalSubmit(modal, date);
+        });
+
+        // Gestion des touches clavier
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+            }
+        });
+    }
+
+    // ===== AUTO-REMPLISSAGE DES DÉPENSES CONTRAINTES DANS LA MODAL =====
+    autoFillConstrainedExpenseInModal(category, modal) {
+        const constrainedExpenseMapping = {
+            'Loyer': 'loyer',
+            'EDF-GDF': 'edf', 
+            'Internet': 'internet',
+            'Remboursement crédit': 'credit',
+            'Impôt': 'impot', 
+            'Autres': 'autres',
+            'Assurance maison': 'assuranceMaison',
+            'Assurance voiture': 'assuranceVoiture'
+        };
+
+        const fixedExpenseKey = constrainedExpenseMapping[category];
+
+        if (fixedExpenseKey && this.fixedExpenses[fixedExpenseKey] > 0) {
+            const amountInput = modal.querySelector('#modal-amount');
+            if (amountInput) {
+                amountInput.value = this.fixedExpenses[fixedExpenseKey].toFixed(2);
+                
+                // Indication visuelle
+                amountInput.style.background = '#e8f5e8';
+                setTimeout(() => {
+                    amountInput.style.background = '';
+                }, 2000);
+            }
+        }
+    }
+
+    // ===== GESTION DE LA SOUMISSION DE LA MODAL =====
+    handleModalSubmit(modal, date) {
+        const errorElement = modal.querySelector('#modal-error-message');
+        errorElement.textContent = '';
+
+        // Récupérer les données du formulaire
+        const transactionData = {
+            label: modal.querySelector('#modal-label').value.trim(),
+            amount: parseFloat(modal.querySelector('#modal-amount').value),
+            category: modal.querySelector('#modal-category').value,
+            date: this.formatDateString(date),
+            type: modal.querySelector('#modal-type-expense').checked ? 'expense' : 'income'
+        };
+
+        // Validation
+        const error = this.validateTransaction(transactionData);
+        if (error) {
+            errorElement.textContent = error;
+            return;
+        }
+
+        try {
+            // Ajouter la transaction
+            transactionData.id = Date.now();
+            
+            if (this.transactionManager) {
+                this.transactionManager.addTransaction(transactionData);
+                this.transactions = this.transactionManager.getAllTransactions();
+            } else {
+                this.transactions.push(transactionData);
+                StorageManager.saveTransactions(this.transactions);
+            }
+
+            // Mettre à jour l'affichage
+            this.updateAllComponents();
+            
+            // Fermer la modal
+            modal.remove();
+            
+            console.log('✅ Transaction ajoutée via modal avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'ajout via modal:', error);
+            errorElement.textContent = error.message;
+        }
+    }
+
+    // ===== NOUVELLE MÉTHODE POUR OUVRIR LA MODAL =====
+    openTransactionModal(date) {
+        // Formater la date pour l'affichage
+        const formattedDate = date.toLocaleDateString('fr-FR', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Créer la modal
+        const modal = document.createElement('div');
+        modal.className = 'transaction-modal-overlay';
+        modal.innerHTML = `
+            <div class="transaction-modal">
+                <div class="transaction-modal-header">
+                    <h3>💰 Nouvelle transaction</h3>
+                    <div class="transaction-modal-subtitle">${formattedDate}</div>
+                    <button class="modal-close" onclick="this.closest('.transaction-modal-overlay').remove()">×</button>
+                </div>
+                <div class="transaction-modal-content">
+                    <form id="modal-transaction-form">
+                        <!-- Catégorie et Libellé -->
+                        <div class="modal-form-row">
+                            <div class="modal-form-group">
+                                <label for="modal-category">Catégorie</label>
+                                <select id="modal-category" required>
+                                    <option value="">Sélectionner...</option>
+                                    <option value="Alimentation">🍕 Alimentation</option>
+                                    <option value="Assurance maison">🏠🛡️ Assurance maison</option>
+                                    <option value="Assurance voiture">🚗🛡️ Assurance voiture</option>
+                                    <option value="Cigarettes">🚬 Cigarettes</option>
+                                    <option value="EDF-GDF">⚡ EDF-GDF</option>
+                                    <option value="Essence">⛽ Essence</option>
+                                    <option value="Impôt">🏛️ Impôt</option>
+                                    <option value="Internet">🌐 Internet</option>
+                                    <option value="Internet Outils">🔧 Internet Outils</option>
+                                    <option value="Logement">🏠 Logement</option>
+                                    <option value="Loisirs">🎬 Loisirs</option>
+                                    <option value="Loyer">🏠 Loyer</option>
+                                    <option value="Prêt">💳 Prêt</option>
+                                    <option value="Remboursement crédit">🏦 Remboursement crédit</option>
+                                    <option value="Retrait DAB">🏧 Retrait DAB</option>
+                                    <option value="Salaire">💼 Salaire</option>
+                                    <option value="Santé">🏥 Santé</option>
+                                    <option value="Transport">🚗 Transport</option>
+                                    <option value="Vêtements">👕 Vêtements</option>
+                                    <option value="Autres">📦 Autres</option>
+                                </select>
+                            </div>
+                            
+                            <div class="modal-form-group">
+                                <label for="modal-label">Libellé</label>
+                                <input type="text" id="modal-label" placeholder="Description" required />
+                            </div>
+                        </div>
+                        
+                        <!-- Montant et Type -->
+                        <div class="modal-form-row">
+                            <div class="modal-form-group">
+                                <label for="modal-amount">Montant (€)</label>
+                                <input type="number" id="modal-amount" placeholder="0.00" step="0.01" required />
+                            </div>
+                            
+                            <div class="modal-form-group">
+                                <label>Type</label>
+                                <div class="modal-radio-group">
+                                    <label class="modal-radio-label expense-option">
+                                        <input type="radio" id="modal-type-expense" name="modal-type" value="expense" checked />
+                                        <span class="radio-custom"></span>
+                                        <span>💸 Dépense</span>
+                                    </label>
+                                    <label class="modal-radio-label income-option">
+                                        <input type="radio" id="modal-type-income" name="modal-type" value="income" />
+                                        <span class="radio-custom"></span>
+                                        <span>💰 Revenu</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Date (cachée et bloquée) -->
+                        <input type="hidden" id="modal-date" value="${this.formatDateString(date)}" />
+                        
+                        <!-- Boutons -->
+                        <div class="modal-form-actions">
+                            <button type="button" class="btn-secondary modal-cancel" onclick="this.closest('.transaction-modal-overlay').remove()">
+                                ❌ Annuler
+                            </button>
+                            <button type="submit" class="btn-success">
+                                ✅ Ajouter
+                            </button>
+                        </div>
+                        
+                        <div class="modal-error-message" id="modal-error-message"></div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        // Ajouter la modal au DOM
+        document.body.appendChild(modal);
+
+        // Setup des event listeners pour la modal
+        this.setupModalEventListeners(modal, date);
+
+        // Focus sur le premier champ
+        setTimeout(() => {
+            const categorySelect = modal.querySelector('#modal-category');
+            if (categorySelect) categorySelect.focus();
+        }, 100);
+
+        // Fermer en cliquant à l'extérieur
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    // ===== SETUP DES EVENT LISTENERS POUR LA MODAL =====
+    setupModalEventListeners(modal, date) {
+        const form = modal.querySelector('#modal-transaction-form');
+        const categorySelect = modal.querySelector('#modal-category');
+        const labelInput = modal.querySelector('#modal-label');
+        
+        // Auto-remplissage du libellé basé sur la catégorie
+        categorySelect.addEventListener('change', () => {
+            if (categorySelect.value && !labelInput.value) {
+                labelInput.value = categorySelect.value;
+            }
+            
+            // Auto-remplissage depuis les dépenses contraintes
+            this.autoFillConstrainedExpenseInModal(categorySelect.value, modal);
+        });
+
+        // Gestion de la soumission du formulaire
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleModalSubmit(modal, date);
+        });
+
+        // Gestion des touches clavier
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+            }
+        });
+    }
+
+    // ===== AUTO-REMPLISSAGE DES DÉPENSES CONTRAINTES DANS LA MODAL =====
+    autoFillConstrainedExpenseInModal(category, modal) {
+        const constrainedExpenseMapping = {
+            'Loyer': 'loyer',
+            'EDF-GDF': 'edf', 
+            'Internet': 'internet',
+            'Remboursement crédit': 'credit',
+            'Impôt': 'impot', 
+            'Autres': 'autres',
+            'Assurance maison': 'assuranceMaison',
+            'Assurance voiture': 'assuranceVoiture'
+        };
+
+        const fixedExpenseKey = constrainedExpenseMapping[category];
+
+        if (fixedExpenseKey && this.fixedExpenses[fixedExpenseKey] > 0) {
+            const amountInput = modal.querySelector('#modal-amount');
+            if (amountInput) {
+                amountInput.value = this.fixedExpenses[fixedExpenseKey].toFixed(2);
+                
+                // Indication visuelle
+                amountInput.style.background = '#e8f5e8';
+                setTimeout(() => {
+                    amountInput.style.background = '';
+                }, 2000);
+            }
+        }
+    }
+
+    // ===== GESTION DE LA SOUMISSION DE LA MODAL =====
+    handleModalSubmit(modal, date) {
+        const errorElement = modal.querySelector('#modal-error-message');
+        errorElement.textContent = '';
+
+        // Récupérer les données du formulaire
+        const transactionData = {
+            label: modal.querySelector('#modal-label').value.trim(),
+            amount: parseFloat(modal.querySelector('#modal-amount').value),
+            category: modal.querySelector('#modal-category').value,
+            date: this.formatDateString(date),
+            type: modal.querySelector('#modal-type-expense').checked ? 'expense' : 'income'
+        };
+
+        // Validation
+        const error = this.validateTransaction(transactionData);
+        if (error) {
+            errorElement.textContent = error;
+            return;
+        }
+
+        try {
+            // Ajouter la transaction
+            transactionData.id = Date.now();
+            
+            if (this.transactionManager) {
+                this.transactionManager.addTransaction(transactionData);
+                this.transactions = this.transactionManager.getAllTransactions();
+            } else {
+                this.transactions.push(transactionData);
+                StorageManager.saveTransactions(this.transactions);
+            }
+
+            // Mettre à jour l'affichage
+            this.updateAllComponents();
+            
+            // Fermer la modal
+            modal.remove();
+            
+            console.log('✅ Transaction ajoutée via modal avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'ajout via modal:', error);
+            errorElement.textContent = error.message;
+        }
     }
 
     // ===== SUMMARY METHODS =====
