@@ -88,6 +88,44 @@ class BudgetPredictionsAI {
     }
 
     /**
+     * MÉTHODE MANQUANTE - Récupère les transactions pour une période donnée
+     */
+    getTransactionsForPeriod(period = 'month') {
+        const now = new Date();
+        const transactions = this.transactionManager.getAllTransactions();
+        
+        let startDate, endDate;
+        
+        switch (period) {
+            case 'week':
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+                endDate = now;
+                break;
+            case 'month':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                break;
+            case 'quarter':
+                const quarter = Math.floor(now.getMonth() / 3);
+                startDate = new Date(now.getFullYear(), quarter * 3, 1);
+                endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+                break;
+            case 'year':
+                startDate = new Date(now.getFullYear(), 0, 1);
+                endDate = new Date(now.getFullYear(), 11, 31);
+                break;
+            default:
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        }
+        
+        return transactions.filter(transaction => {
+            const transactionDate = new Date(transaction.date);
+            return transactionDate >= startDate && transactionDate <= endDate;
+        });
+    }
+
+    /**
      * Prédit les dépenses récurrentes
      */
     predictRecurringExpenses() {
@@ -104,19 +142,40 @@ class BudgetPredictionsAI {
         }));
     }
 
-    // ===== MODÈLES DE PRÉDICTION =====
+    /**
+     * Prédit les dépenses pour un mois spécifique
+     */
+    async predictMonthExpenses(monthsAhead = 1) {
+        const historicalData = this.prepareHistoricalData();
+        if (historicalData.length < 2) {
+            return { expenses: 0, income: 0, confidence: 0 };
+        }
+
+        const avgExpenses = historicalData.reduce((sum, month) => sum + month.totalExpenses, 0) / historicalData.length;
+        const avgIncome = historicalData.reduce((sum, month) => sum + month.totalIncome, 0) / historicalData.length;
+        
+        // Ajustement saisonnier simple
+        const seasonalFactor = this.getSeasonalFactor(monthsAhead);
+        
+        return {
+            expenses: avgExpenses * seasonalFactor,
+            income: avgIncome * seasonalFactor,
+            confidence: Math.min(0.8, historicalData.length / 12)
+        };
+    }
+
+    // ===== PRÉPARATION DES DONNÉES =====
 
     prepareHistoricalData() {
         const transactions = this.transactionManager.getAllTransactions();
-        const monthlyData = this.groupByMonth(transactions);
+        const grouped = this.groupByMonth(transactions);
         
-        return monthlyData.map(month => ({
-            date: month.date,
-            totalExpenses: month.expenses,
-            totalIncome: month.income,
-            balance: month.income - month.expenses,
-            categories: month.categoryBreakdown,
-            transactionCount: month.count
+        return grouped.map(monthData => ({
+            date: monthData.date,
+            totalExpenses: monthData.expenses,
+            totalIncome: monthData.income,
+            transactionCount: monthData.transactions.length,
+            categories: this.getCategoriesBreakdown(monthData.transactions)
         }));
     }
 
@@ -125,36 +184,84 @@ class BudgetPredictionsAI {
         
         transactions.forEach(transaction => {
             const date = new Date(transaction.date);
-            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             
-            if (!groups[monthKey]) {
-                groups[monthKey] = {
-                    date: monthKey,
-                    income: 0,
+            if (!groups[key]) {
+                groups[key] = {
+                    date: new Date(date.getFullYear(), date.getMonth(), 1),
+                    transactions: [],
                     expenses: 0,
-                    count: 0,
-                    categoryBreakdown: {}
+                    income: 0
                 };
             }
             
-            if (transaction.type === 'income') {
-                groups[monthKey].income += transaction.amount;
+            groups[key].transactions.push(transaction);
+            if (transaction.amount < 0) {
+                groups[key].expenses += Math.abs(transaction.amount);
             } else {
-                groups[monthKey].expenses += transaction.amount;
+                groups[key].income += transaction.amount;
             }
-            
-            groups[monthKey].count++;
-            
-            // Breakdown par catégorie
-            const category = transaction.category;
-            if (!groups[monthKey].categoryBreakdown[category]) {
-                groups[monthKey].categoryBreakdown[category] = 0;
-            }
-            groups[monthKey].categoryBreakdown[category] += transaction.amount;
         });
         
-        return Object.values(groups).sort((a, b) => a.date.localeCompare(b.date));
+        return Object.values(groups).sort((a, b) => a.date - b.date);
     }
+
+    getCategoriesBreakdown(transactions) {
+        const breakdown = {};
+        
+        transactions.forEach(transaction => {
+            const category = transaction.category || 'Non catégorisé';
+            if (!breakdown[category]) {
+                breakdown[category] = 0;
+            }
+            if (transaction.amount < 0) {
+                breakdown[category] += Math.abs(transaction.amount);
+            }
+        });
+        
+        return breakdown;
+    }
+
+    // ===== PRÉDICTIONS PAR CATÉGORIE =====
+
+    async predictByCategory(historicalData) {
+        const categories = this.getAllCategories();
+        const predictions = {};
+        
+        categories.forEach(category => {
+            const categoryData = this.extractCategoryData(historicalData, category);
+            if (categoryData.length >= 2) {
+                predictions[category] = this.predictCategoryAmount(categoryData);
+            } else {
+                predictions[category] = { amount: 0, confidence: 0 };
+            }
+        });
+        
+        return predictions;
+    }
+
+    predictCategoryAmount(categoryData) {
+        if (categoryData.length < 2) {
+            return { amount: 0, confidence: 0 };
+        }
+        
+        // Moyenne mobile avec pondération récente
+        const weights = categoryData.map((_, index) => Math.pow(1.1, index));
+        const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+        
+        const weightedAverage = categoryData.reduce((sum, data, index) => {
+            return sum + (data.amount * weights[index]);
+        }, 0) / totalWeight;
+        
+        const confidence = Math.min(0.9, categoryData.length / 6);
+        
+        return {
+            amount: weightedAverage,
+            confidence: confidence
+        };
+    }
+
+    // ===== MODÈLES DE PRÉDICTION =====
 
     combineModels(predictions, historicalData) {
         // Calculer la précision de chaque modèle sur les données historiques
@@ -207,123 +314,97 @@ class BudgetPredictionsAI {
                 totalError += error;
             });
             
-            accuracies[modelName] = Math.max(0.1, 1 - (totalError / testData.length));
+            accuracies[modelName] = 1 - (totalError / testData.length);
         });
         
         return accuracies;
     }
 
-    async predictByCategory(historicalData) {
-        const categories = this.getAllCategories();
-        const predictions = {};
-        
-        for (const category of categories) {
-            const categoryData = this.extractCategoryData(historicalData, category);
-            if (categoryData.length >= 2) {
-                const prediction = this.models.linear.predict(categoryData);
-                predictions[category] = {
-                    predicted: prediction.amount,
-                    confidence: prediction.confidence,
-                    trend: this.calculateCategoryTrend(categoryData),
-                    seasonality: this.detectSeasonality(categoryData)
-                };
-            }
-        }
-        
-        return predictions;
-    }
-
     // ===== ANALYSE DES TENDANCES =====
 
     analyzeTrends(historicalData) {
-        const trends = {
-            overall: this.calculateOverallTrend(historicalData),
-            categories: {},
-            patterns: this.identifyPatterns(historicalData)
-        };
+        const trends = {};
         
+        // Tendance générale
+        trends.overall = this.calculateOverallTrend(historicalData);
+        
+        // Tendances par catégorie
         const categories = this.getAllCategories();
         categories.forEach(category => {
             const categoryData = this.extractCategoryData(historicalData, category);
             if (categoryData.length >= 3) {
-                trends.categories[category] = this.calculateCategoryTrend(categoryData);
+                trends[category] = this.calculateCategoryTrend(categoryData);
             }
         });
         
         return trends;
     }
 
-    calculateOverallTrend(data) {
-        if (data.length < 2) return { direction: 'stable', slope: 0 };
+    calculateOverallTrend(historicalData) {
+        if (historicalData.length < 2) {
+            return { direction: 'stable', slope: 0, confidence: 0 };
+        }
         
-        const expenses = data.map(d => d.totalExpenses);
-        const slope = this.calculateSlope(expenses);
+        const values = historicalData.map(month => month.totalExpenses);
+        const slope = this.calculateLinearRegression(values).slope;
         
         return {
             direction: slope > 5 ? 'increasing' : slope < -5 ? 'decreasing' : 'stable',
             slope: slope,
-            percentage: this.calculatePercentageChange(expenses),
-            volatility: this.calculateVolatility(expenses)
+            confidence: Math.min(0.9, historicalData.length / 12)
         };
     }
 
     calculateCategoryTrend(categoryData) {
-        const amounts = categoryData.map(d => d.amount || 0);
-        const slope = this.calculateSlope(amounts);
+        const values = categoryData.map(data => data.amount);
+        const slope = this.calculateLinearRegression(values).slope;
         
         return {
             direction: slope > 2 ? 'increasing' : slope < -2 ? 'decreasing' : 'stable',
             slope: slope,
-            volatility: this.calculateVolatility(amounts),
-            growth: this.calculateGrowthRate(amounts)
+            confidence: Math.min(0.9, categoryData.length / 6)
         };
     }
 
-    calculateSlope(values) {
+    calculateLinearRegression(values) {
         const n = values.length;
-        if (n < 2) return 0;
+        const xValues = Array.from({ length: n }, (_, i) => i);
         
-        const x = Array.from({length: n}, (_, i) => i);
-        const sumX = x.reduce((sum, val) => sum + val, 0);
-        const sumY = values.reduce((sum, val) => sum + val, 0);
-        const sumXY = x.reduce((sum, val, i) => sum + val * values[i], 0);
-        const sumXX = x.reduce((sum, val) => sum + val * val, 0);
+        const sumX = xValues.reduce((sum, x) => sum + x, 0);
+        const sumY = values.reduce((sum, y) => sum + y, 0);
+        const sumXY = xValues.reduce((sum, x, i) => sum + x * values[i], 0);
+        const sumXX = xValues.reduce((sum, x) => sum + x * x, 0);
         
-        return (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        
+        return { slope, intercept };
     }
 
-    calculateVolatility(values) {
-        if (values.length < 2) return 0;
-        
-        const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
-        
-        return Math.sqrt(variance) / mean;
-    }
-
-    // ===== DÉTECTION D'ANOMALIES =====
+    // ===== FACTEURS DE RISQUE =====
 
     identifyRiskFactors(historicalData) {
         const risks = [];
         
-        // Croissance rapide des dépenses
-        const overallTrend = this.calculateOverallTrend(historicalData);
-        if (overallTrend.slope > 10) {
-            risks.push({
-                type: 'rapid_growth',
-                severity: 'high',
-                description: 'Croissance rapide des dépenses détectée',
-                impact: overallTrend.slope
-            });
-        }
-        
         // Volatilité élevée
-        if (overallTrend.volatility > 0.3) {
+        const volatility = this.calculateVolatility(historicalData);
+        if (volatility > 0.3) {
             risks.push({
                 type: 'high_volatility',
                 severity: 'medium',
-                description: 'Dépenses très variables d\'un mois à l\'autre',
-                impact: overallTrend.volatility
+                description: 'Forte variabilité dans vos dépenses',
+                impact: volatility
+            });
+        }
+        
+        // Tendance inquiétante
+        const trend = this.calculateOverallTrend(historicalData);
+        if (trend.slope > 10) {
+            risks.push({
+                type: 'increasing_expenses',
+                severity: 'high',
+                description: 'Augmentation continue des dépenses',
+                impact: trend.slope
             });
         }
         
@@ -348,6 +429,16 @@ class BudgetPredictionsAI {
         return risks.sort((a, b) => this.getSeverityScore(b.severity) - this.getSeverityScore(a.severity));
     }
 
+    calculateVolatility(historicalData) {
+        if (historicalData.length < 2) return 0;
+        
+        const values = historicalData.map(month => month.totalExpenses);
+        const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+        
+        return Math.sqrt(variance) / mean; // Coefficient de variation
+    }
+
     getSeverityScore(severity) {
         const scores = { low: 1, medium: 2, high: 3 };
         return scores[severity] || 0;
@@ -369,53 +460,75 @@ class BudgetPredictionsAI {
                 actions: [
                     'Revoir les dépenses non-essentielles',
                     'Reporter certains achats',
-                    'Surveiller les catégories à risque'
+                    'Surveiller les catégories en hausse'
                 ]
             });
         }
         
-        // Recommandations par catégorie
-        const categoryAnalysis = this.analyzeCategoryEfficiency(historicalData);
-        categoryAnalysis.forEach(analysis => {
-            if (analysis.optimization > 0) {
+        // Recommandations basées sur les tendances
+        const trends = this.analyzeTrends(historicalData);
+        Object.entries(trends).forEach(([category, trend]) => {
+            if (category !== 'overall' && trend.slope > 10) {
                 recommendations.push({
                     type: 'category_optimization',
                     priority: 'medium',
-                    title: `Optimiser: ${analysis.category}`,
-                    description: `Économies potentielles: ${analysis.optimization.toFixed(2)}€`,
-                    actions: analysis.suggestions
+                    title: `Optimisation de la catégorie ${category}`,
+                    description: `Cette catégorie montre une tendance à la hausse (${trend.slope.toFixed(1)}% par mois)`,
+                    actions: [
+                        `Analyser les dépenses en ${category}`,
+                        'Rechercher des alternatives moins coûteuses',
+                        'Définir un budget spécifique'
+                    ]
                 });
             }
         });
         
-        // Détection de saisonnalité
-        const seasonalPatterns = this.detectSeasonalPatterns(historicalData);
-        seasonalPatterns.forEach(pattern => {
+        // Recommandations d'épargne
+        if (currentMonth && currentMonth.totalIncome > currentMonth.totalExpenses * 1.2) {
             recommendations.push({
-                type: 'seasonal_planning',
+                type: 'savings_opportunity',
                 priority: 'low',
-                title: `Planification saisonnière: ${pattern.category}`,
-                description: `Pattern détecté: ${pattern.description}`,
-                actions: [`Anticiper les variations pour ${pattern.period}`]
+                title: 'Opportunité d\'épargne',
+                description: 'Votre solde positif permet d\'augmenter votre épargne',
+                actions: [
+                    'Mettre en place un virement automatique',
+                    'Considérer des investissements',
+                    'Constituer un fonds d\'urgence'
+                ]
             });
-        });
+        }
         
         return recommendations.sort((a, b) => this.getPriorityScore(b.priority) - this.getPriorityScore(a.priority));
     }
 
+    // ===== OPTIMISATIONS SUGGÉRÉES =====
+
     suggestOptimizations(historicalData) {
         const optimizations = [];
         
-        // Analyse des doublons potentiels
-        const duplicates = this.findPotentialDuplicates(historicalData);
-        if (duplicates.length > 0) {
+        // Analyse des catégories coûteuses
+        const categories = this.getAllCategories();
+        const categoryTotals = {};
+        
+        categories.forEach(category => {
+            const categoryData = this.extractCategoryData(historicalData, category);
+            categoryTotals[category] = categoryData.reduce((sum, data) => sum + data.amount, 0);
+        });
+        
+        // Top 3 des catégories les plus coûteuses
+        const topCategories = Object.entries(categoryTotals)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 3);
+            
+        topCategories.forEach(([category, total]) => {
             optimizations.push({
-                type: 'eliminate_duplicates',
-                savings: duplicates.reduce((sum, d) => sum + d.amount, 0),
-                description: `${duplicates.length} transactions suspectes détectées`,
-                items: duplicates
+                type: 'reduce_category',
+                category: category,
+                potential: total * 0.1, // 10% d'économie potentielle
+                description: `Réduire les dépenses en ${category}`,
+                suggestions: this.getCategoryOptimizationSuggestions(category)
             });
-        }
+        });
         
         // Substitutions suggérées
         const substitutions = this.suggestSubstitutions(historicalData);
@@ -426,6 +539,37 @@ class BudgetPredictionsAI {
         optimizations.push(...negotiations);
         
         return optimizations;
+    }
+
+    getCategoryOptimizationSuggestions(category) {
+        const suggestions = {
+            'Alimentation': ['Cuisiner plus à la maison', 'Acheter en gros', 'Comparer les prix'],
+            'Transport': ['Utiliser les transports en commun', 'Covoiturage', 'Vélo pour les courtes distances'],
+            'Loisirs': ['Activités gratuites', 'Abonnements groupés', 'Offres promotionnelles'],
+            'Vêtements': ['Achats en soldes', 'Seconde main', 'Limiter les achats impulsifs']
+        };
+        
+        return suggestions[category] || ['Analyser les dépenses', 'Rechercher des alternatives', 'Comparer les prix'];
+    }
+
+    suggestSubstitutions(historicalData) {
+        // Implémentation simplifiée pour les substitutions
+        return [{
+            type: 'substitution',
+            description: 'Remplacer les marques premium par des alternatives',
+            potential: 50,
+            suggestions: ['Marques distributeur', 'Produits en promotion', 'Achats groupés']
+        }];
+    }
+
+    identifyNegotiationOpportunities(historicalData) {
+        // Implémentation simplifiée pour les négociations
+        return [{
+            type: 'negotiation',
+            description: 'Renégocier les contrats récurrents',
+            potential: 30,
+            suggestions: ['Assurances', 'Abonnements téléphoniques', 'Fournisseurs d\'énergie']
+        }];
     }
 
     // ===== PATTERNS ET SAISONNALITÉ =====
@@ -444,6 +588,69 @@ class BudgetPredictionsAI {
         });
         
         return patterns.sort((a, b) => b.confidence - a.confidence);
+    }
+
+    /**
+     * MÉTHODE MANQUANTE - Analyse un pattern récurrent
+     */
+    analyzeRecurringPattern(transactions) {
+        if (transactions.length < 2) {
+            return { confidence: 0 };
+        }
+
+        // Trier par date
+        const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Calculer les intervalles entre transactions
+        const intervals = [];
+        for (let i = 1; i < sortedTransactions.length; i++) {
+            const prevDate = new Date(sortedTransactions[i - 1].date);
+            const currentDate = new Date(sortedTransactions[i].date);
+            const diffDays = Math.round((currentDate - prevDate) / (1000 * 60 * 60 * 24));
+            intervals.push(diffDays);
+        }
+        
+        // Déterminer la fréquence moyenne
+        const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+        
+        // Calculer la variance pour déterminer la régularité
+        const variance = intervals.reduce((sum, interval) => sum + Math.pow(interval - avgInterval, 2), 0) / intervals.length;
+        const standardDeviation = Math.sqrt(variance);
+        
+        // Confidence basée sur la régularité (plus la variance est faible, plus la confiance est élevée)
+        const regularityScore = Math.max(0, 1 - (standardDeviation / avgInterval));
+        
+        // Confidence basée sur le nombre d'occurrences
+        const frequencyScore = Math.min(1, transactions.length / 5);
+        
+        // Confidence globale
+        const confidence = (regularityScore * 0.7 + frequencyScore * 0.3);
+        
+        // Calculer le montant moyen
+        const averageAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0) / transactions.length;
+        
+        // Déterminer le type de fréquence
+        let frequency;
+        if (avgInterval <= 7) frequency = 'weekly';
+        else if (avgInterval <= 32) frequency = 'monthly';
+        else if (avgInterval <= 95) frequency = 'quarterly';
+        else frequency = 'yearly';
+        
+        // Prédire la prochaine occurrence
+        const lastTransaction = sortedTransactions[sortedTransactions.length - 1];
+        const nextPredicted = new Date(lastTransaction.date);
+        nextPredicted.setDate(nextPredicted.getDate() + Math.round(avgInterval));
+        
+        return {
+            category: transactions[0].category,
+            label: transactions[0].label,
+            averageAmount: averageAmount,
+            frequency: frequency,
+            avgInterval: Math.round(avgInterval),
+            nextPredicted: nextPredicted,
+            confidence: confidence,
+            occurrences: transactions.length
+        };
     }
 
     groupTransactionsBySignature(transactions) {
@@ -494,6 +701,70 @@ class BudgetPredictionsAI {
         return patterns;
     }
 
+    analyzeSeasonality(categoryData) {
+        // Implémentation simplifiée de l'analyse saisonnière
+        const monthlyAverages = Array(12).fill(0);
+        const monthlyCounts = Array(12).fill(0);
+        
+        categoryData.forEach(data => {
+            const month = new Date(data.date).getMonth();
+            monthlyAverages[month] += data.amount;
+            monthlyCounts[month]++;
+        });
+        
+        // Calculer les moyennes réelles
+        for (let i = 0; i < 12; i++) {
+            if (monthlyCounts[i] > 0) {
+                monthlyAverages[i] /= monthlyCounts[i];
+            }
+        }
+        
+        // Trouver le mois avec le pic le plus élevé
+        const maxMonth = monthlyAverages.indexOf(Math.max(...monthlyAverages));
+        const minMonth = monthlyAverages.indexOf(Math.min(...monthlyAverages));
+        
+        const maxValue = monthlyAverages[maxMonth];
+        const minValue = monthlyAverages[minMonth];
+        const strength = maxValue > 0 ? (maxValue - minValue) / maxValue : 0;
+        
+        return {
+            period: 12,
+            strength: strength,
+            description: `Pic en ${this.getMonthName(maxMonth)}, minimum en ${this.getMonthName(minMonth)}`
+        };
+    }
+
+    getMonthName(monthIndex) {
+        const months = [
+            'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+            'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+        ];
+        return months[monthIndex];
+    }
+
+    getSeasonalFactor(monthsAhead) {
+        // Facteur saisonnier simplifié
+        const targetMonth = (new Date().getMonth() + monthsAhead) % 12;
+        
+        // Facteurs basés sur des patterns typiques de dépenses
+        const seasonalFactors = [
+            1.1, // Janvier - après les fêtes
+            0.9, // Février
+            1.0, // Mars
+            1.0, // Avril
+            1.0, // Mai
+            1.1, // Juin - vacances d'été
+            1.2, // Juillet - vacances
+            1.2, // Août - vacances
+            1.0, // Septembre - rentrée
+            1.0, // Octobre
+            1.1, // Novembre - préparation fêtes
+            1.3  // Décembre - fêtes de fin d'année
+        ];
+        
+        return seasonalFactors[targetMonth];
+    }
+
     // ===== UTILITIES =====
 
     getAllCategories() {
@@ -527,6 +798,16 @@ class BudgetPredictionsAI {
         }
         
         return periods > 0 ? (totalGrowth / periods) * 100 : 0;
+    }
+
+    calculateConfidence(predictions) {
+        if (!predictions || predictions.length === 0) return 0;
+        
+        // Confidence basée sur la quantité de données et la cohérence
+        const dataQuality = Math.min(1, predictions.length / 6);
+        const avgConfidence = predictions.reduce((sum, pred) => sum + (pred.confidence || 0), 0) / predictions.length;
+        
+        return Math.min(0.95, dataQuality * avgConfidence);
     }
 
     getPriorityScore(priority) {
@@ -616,256 +897,274 @@ class BudgetPredictionsAI {
         return {
             score: Math.min(100, score),
             level: score >= 80 ? 'excellent' : score >= 60 ? 'good' : score >= 40 ? 'fair' : 'poor',
-            issues,
-            monthsOfData,
-            suggestions: this.generateDataQualitySuggestions(score, issues)
+            monthsOfData: monthsOfData,
+            issues: issues
         };
     }
 
     calculateDataRegularity(transactions) {
-        const monthlyData = this.groupByMonth(transactions);
-        if (monthlyData.length < 2) return 0;
+        if (transactions.length < 30) return 0.5; // Score moyen pour peu de données
         
-        const gaps = [];
-        for (let i = 1; i < monthlyData.length; i++) {
-            const current = new Date(monthlyData[i].date);
-            const previous = new Date(monthlyData[i-1].date);
-            const monthsDiff = (current.getFullYear() - previous.getFullYear()) * 12 + 
-                             (current.getMonth() - previous.getMonth());
-            gaps.push(monthsDiff);
-        }
+        const monthlyGroups = this.groupByMonth(transactions);
+        if (monthlyGroups.length < 3) return 0.3;
         
-        const avgGap = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
-        return Math.max(0, 1 - Math.abs(avgGap - 1) * 0.5);
+        // Calculer la régularité basée sur le nombre de transactions par mois
+        const monthlyCounts = monthlyGroups.map(group => group.transactions.length);
+        const avgCount = monthlyCounts.reduce((sum, count) => sum + count, 0) / monthlyCounts.length;
+        const variance = monthlyCounts.reduce((sum, count) => sum + Math.pow(count - avgCount, 2), 0) / monthlyCounts.length;
+        
+        // Score de régularité (plus la variance est faible, meilleur est le score)
+        const regularityScore = Math.max(0, 1 - (Math.sqrt(variance) / avgCount));
+        return Math.min(1, regularityScore);
     }
 
     calculateAmountConsistency(transactions) {
-        const amounts = transactions.map(t => t.amount);
-        const outliers = this.anomalyDetector.detectOutliers(amounts);
-        return Math.max(0, 1 - (outliers.length / amounts.length));
-    }
-
-    generateDataQualitySuggestions(score, issues) {
-        const suggestions = [];
+        if (transactions.length < 10) return 0.5;
         
-        if (score < 60) {
-            suggestions.push('Saisir régulièrement toutes les transactions');
-            suggestions.push('Utiliser des catégories détaillées');
-            suggestions.push('Vérifier la cohérence des montants');
-        }
+        // Analyser la cohérence des montants par catégorie
+        const categories = this.getAllCategories();
+        let totalConsistency = 0;
+        let validCategories = 0;
         
-        if (issues.includes('Données insuffisantes pour prédictions fiables')) {
-            suggestions.push('Continuer la saisie pendant au moins 6 mois');
-        }
+        categories.forEach(category => {
+            const categoryTransactions = transactions.filter(t => t.category === category);
+            if (categoryTransactions.length >= 3) {
+                const amounts = categoryTransactions.map(t => Math.abs(t.amount));
+                const avgAmount = amounts.reduce((sum, amount) => sum + amount, 0) / amounts.length;
+                const variance = amounts.reduce((sum, amount) => sum + Math.pow(amount - avgAmount, 2), 0) / amounts.length;
+                
+                // Score de cohérence pour cette catégorie
+                const consistency = avgAmount > 0 ? Math.max(0, 1 - (Math.sqrt(variance) / avgAmount)) : 0;
+                totalConsistency += consistency;
+                validCategories++;
+            }
+        });
         
-        return suggestions;
+        return validCategories > 0 ? totalConsistency / validCategories : 0.5;
     }
 }
 
-// ===== MODÈLES DE PRÉDICTION SPÉCIALISÉS =====
+// ===== MODÈLES DE PRÉDICTION =====
 
 class LinearRegressionModel {
-    predict(data) {
-        if (data.length < 2) {
+    predict(historicalData) {
+        if (historicalData.length < 2) {
             return { amount: 0, confidence: 0 };
         }
         
-        const expenses = data.map(d => d.totalExpenses);
-        const x = Array.from({length: expenses.length}, (_, i) => i);
+        const values = historicalData.map(month => month.totalExpenses);
+        const regression = this.calculateLinearRegression(values);
         
-        // Calcul de la régression linéaire
-        const n = expenses.length;
-        const sumX = x.reduce((sum, val) => sum + val, 0);
-        const sumY = expenses.reduce((sum, val) => sum + val, 0);
-        const sumXY = x.reduce((sum, val, i) => sum + val * expenses[i], 0);
-        const sumXX = x.reduce((sum, val) => sum + val * val, 0);
+        // Prédiction pour le mois suivant
+        const nextValue = regression.intercept + regression.slope * values.length;
+        
+        // Confidence basée sur le R² (coefficient de détermination)
+        const rSquared = this.calculateRSquared(values, regression);
+        
+        return {
+            amount: Math.max(0, nextValue),
+            confidence: Math.min(0.9, rSquared)
+        };
+    }
+    
+    calculateLinearRegression(values) {
+        const n = values.length;
+        const xValues = Array.from({ length: n }, (_, i) => i);
+        
+        const sumX = xValues.reduce((sum, x) => sum + x, 0);
+        const sumY = values.reduce((sum, y) => sum + y, 0);
+        const sumXY = xValues.reduce((sum, x, i) => sum + x * values[i], 0);
+        const sumXX = xValues.reduce((sum, x) => sum + x * x, 0);
         
         const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
         const intercept = (sumY - slope * sumX) / n;
         
-        const nextValue = slope * n + intercept;
+        return { slope, intercept };
+    }
+    
+    calculateRSquared(values, regression) {
+        const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
         
-        // Calcul de la confiance basé sur R²
-        const meanY = sumY / n;
-        const ssRes = expenses.reduce((sum, val, i) => {
-            const predicted = slope * i + intercept;
-            return sum + Math.pow(val - predicted, 2);
-        }, 0);
-        const ssTot = expenses.reduce((sum, val) => sum + Math.pow(val - meanY, 2), 0);
-        const rSquared = 1 - (ssRes / ssTot);
+        let totalSumSquares = 0;
+        let residualSumSquares = 0;
         
-        return {
-            amount: Math.max(0, nextValue),
-            confidence: Math.max(0.1, Math.min(0.9, rSquared))
-        };
+        values.forEach((value, index) => {
+            const predicted = regression.intercept + regression.slope * index;
+            totalSumSquares += Math.pow(value - mean, 2);
+            residualSumSquares += Math.pow(value - predicted, 2);
+        });
+        
+        return totalSumSquares > 0 ? 1 - (residualSumSquares / totalSumSquares) : 0;
     }
 }
 
 class SeasonalModel {
-    predict(data) {
-        if (data.length < 4) {
+    predict(historicalData) {
+        if (historicalData.length < 6) {
             return { amount: 0, confidence: 0 };
         }
         
-        const expenses = data.map(d => d.totalExpenses);
+        // Décomposition saisonnière simple
+        const seasonalComponent = this.extractSeasonalComponent(historicalData);
+        const trendComponent = this.extractTrendComponent(historicalData);
         
-        // Détection de saisonnalité simple (cycle de 12 mois)
-        const currentMonth = new Date().getMonth();
-        const seasonalFactors = this.calculateSeasonalFactors(data);
+        // Prédiction en combinant tendance et saisonnalité
+        const nextMonth = (new Date().getMonth() + 1) % 12;
+        const prediction = trendComponent + seasonalComponent[nextMonth];
         
-        const baselineAverage = expenses.reduce((sum, val) => sum + val, 0) / expenses.length;
-        const seasonalFactor = seasonalFactors[currentMonth] || 1;
-        
-        const prediction = baselineAverage * seasonalFactor;
-        const confidence = this.calculateSeasonalConfidence(data);
+        const confidence = Math.min(0.8, historicalData.length / 12);
         
         return {
             amount: Math.max(0, prediction),
-            confidence: Math.max(0.2, Math.min(0.8, confidence))
+            confidence: confidence
         };
     }
     
-    calculateSeasonalFactors(data) {
-        const monthlyAverages = {};
-        const monthlyData = {};
+    extractSeasonalComponent(historicalData) {
+        const monthlyAverages = Array(12).fill(0);
+        const monthlyCounts = Array(12).fill(0);
         
-        data.forEach(d => {
-            const date = new Date(d.date);
-            const month = date.getMonth();
-            
-            if (!monthlyData[month]) monthlyData[month] = [];
-            monthlyData[month].push(d.totalExpenses);
+        historicalData.forEach(month => {
+            const monthIndex = month.date.getMonth();
+            monthlyAverages[monthIndex] += month.totalExpenses;
+            monthlyCounts[monthIndex]++;
         });
         
-        const overallAverage = data.reduce((sum, d) => sum + d.totalExpenses, 0) / data.length;
+        // Calculer les moyennes
+        for (let i = 0; i < 12; i++) {
+            if (monthlyCounts[i] > 0) {
+                monthlyAverages[i] /= monthlyCounts[i];
+            }
+        }
         
-        Object.keys(monthlyData).forEach(month => {
-            const monthData = monthlyData[month];
-            const monthAverage = monthData.reduce((sum, val) => sum + val, 0) / monthData.length;
-            monthlyAverages[month] = monthAverage / overallAverage;
-        });
-        
-        return monthlyAverages;
+        // Normaliser par rapport à la moyenne générale
+        const globalAverage = monthlyAverages.reduce((sum, avg) => sum + avg, 0) / 12;
+        return monthlyAverages.map(avg => avg - globalAverage);
     }
     
-    calculateSeasonalConfidence(data) {
-        if (data.length < 12) return 0.3;
+    extractTrendComponent(historicalData) {
+        const values = historicalData.map(month => month.totalExpenses);
+        const linearModel = new LinearRegressionModel();
+        const regression = linearModel.calculateLinearRegression(values);
         
-        const seasonalFactors = this.calculateSeasonalFactors(data);
-        const variance = Object.values(seasonalFactors).reduce((sum, factor) => {
-            return sum + Math.pow(factor - 1, 2);
-        }, 0) / Object.keys(seasonalFactors).length;
-        
-        return Math.max(0.2, 1 - variance);
+        return regression.intercept + regression.slope * values.length;
     }
 }
 
 class ExponentialSmoothingModel {
-    predict(data, alpha = 0.3) {
-        if (data.length < 2) {
+    predict(historicalData) {
+        if (historicalData.length < 3) {
             return { amount: 0, confidence: 0 };
         }
         
-        const expenses = data.map(d => d.totalExpenses);
-        let smoothed = expenses[0];
+        const values = historicalData.map(month => month.totalExpenses);
+        const alpha = 0.3; // Paramètre de lissage
         
-        for (let i = 1; i < expenses.length; i++) {
-            smoothed = alpha * expenses[i] + (1 - alpha) * smoothed;
+        let smoothedValue = values[0];
+        
+        for (let i = 1; i < values.length; i++) {
+            smoothedValue = alpha * values[i] + (1 - alpha) * smoothedValue;
         }
         
-        // Calcul de l'erreur moyenne pour la confiance
-        let totalError = 0;
-        let currentSmoothed = expenses[0];
-        
-        for (let i = 1; i < expenses.length; i++) {
-            const prediction = currentSmoothed;
-            const actual = expenses[i];
-            totalError += Math.abs(actual - prediction) / actual;
-            currentSmoothed = alpha * actual + (1 - alpha) * currentSmoothed;
-        }
-        
-        const averageError = totalError / (expenses.length - 1);
-        const confidence = Math.max(0.1, 1 - averageError);
+        // La prédiction est la dernière valeur lissée
+        const confidence = Math.min(0.85, historicalData.length / 8);
         
         return {
-            amount: Math.max(0, smoothed),
-            confidence: Math.min(0.8, confidence)
+            amount: smoothedValue,
+            confidence: confidence
         };
     }
 }
 
 class AnomalyDetector {
     detect(transactions) {
+        if (!transactions || transactions.length < 10) {
+            return [];
+        }
+        
         const anomalies = [];
-        const amounts = transactions.map(t => t.amount);
         
-        // Détection par IQR (Interquartile Range)
-        const outliers = this.detectOutliers(amounts);
+        // Détection basée sur les montants
+        const amounts = transactions.map(t => Math.abs(t.amount));
+        const amountAnomalies = this.detectAmountAnomalies(transactions, amounts);
+        anomalies.push(...amountAnomalies);
         
-        transactions.forEach((transaction, index) => {
-            if (outliers.includes(transaction.amount)) {
-                anomalies.push({
-                    transaction,
-                    type: 'amount_outlier',
-                    severity: this.calculateSeverity(transaction.amount, amounts),
-                    description: `Montant inhabituel: ${transaction.amount}€`
-                });
-            }
-        });
-        
-        // Détection de fréquence anormale
+        // Détection basée sur la fréquence
         const frequencyAnomalies = this.detectFrequencyAnomalies(transactions);
         anomalies.push(...frequencyAnomalies);
         
         return anomalies.sort((a, b) => b.severity - a.severity);
     }
     
-    detectOutliers(values) {
-        const sorted = [...values].sort((a, b) => a - b);
-        const q1 = sorted[Math.floor(sorted.length * 0.25)];
-        const q3 = sorted[Math.floor(sorted.length * 0.75)];
-        const iqr = q3 - q1;
+    detectAmountAnomalies(transactions, amounts) {
+        const anomalies = [];
         
-        const lowerBound = q1 - 1.5 * iqr;
-        const upperBound = q3 + 1.5 * iqr;
+        // Calcul des statistiques
+        const mean = amounts.reduce((sum, amount) => sum + amount, 0) / amounts.length;
+        const variance = amounts.reduce((sum, amount) => sum + Math.pow(amount - mean, 2), 0) / amounts.length;
+        const stdDev = Math.sqrt(variance);
         
-        return values.filter(value => value < lowerBound || value > upperBound);
-    }
-    
-    calculateSeverity(amount, allAmounts) {
-        const mean = allAmounts.reduce((sum, val) => sum + val, 0) / allAmounts.length;
-        const deviation = Math.abs(amount - mean) / mean;
+        // Seuil pour détecter les anomalies (2 écarts-types)
+        const threshold = mean + 2 * stdDev;
         
-        if (deviation > 3) return 1; // Très élevé
-        if (deviation > 2) return 0.8; // Élevé
-        if (deviation > 1) return 0.6; // Modéré
-        return 0.4; // Faible
+        transactions.forEach(transaction => {
+            const amount = Math.abs(transaction.amount);
+            if (amount > threshold) {
+                const severity = Math.min(1, (amount - threshold) / threshold);
+                anomalies.push({
+                    type: 'amount',
+                    transaction: transaction,
+                    severity: severity,
+                    description: `Montant inhabituel: ${amount.toFixed(2)}€ (moyenne: ${mean.toFixed(2)}€)`,
+                    expectedRange: `${(mean - stdDev).toFixed(2)}€ - ${(mean + stdDev).toFixed(2)}€`
+                });
+            }
+        });
+        
+        return anomalies;
     }
     
     detectFrequencyAnomalies(transactions) {
-        // Implémentation simplifiée pour détecter des transactions inhabituellement fréquentes
-        const dailyCounts = {};
-        
-        transactions.forEach(t => {
-            const date = t.date;
-            dailyCounts[date] = (dailyCounts[date] || 0) + 1;
-        });
-        
-        const frequencies = Object.values(dailyCounts);
-        const avgFrequency = frequencies.reduce((sum, f) => sum + f, 0) / frequencies.length;
+        // Implémentation simplifiée pour les anomalies de fréquence
         const anomalies = [];
         
-        Object.entries(dailyCounts).forEach(([date, count]) => {
-            if (count > avgFrequency * 3) { // Plus de 3x la moyenne
-                const dayTransactions = transactions.filter(t => t.date === date);
-                anomalies.push({
-                    type: 'frequency_anomaly',
-                    date,
-                    count,
-                    severity: Math.min(1, count / (avgFrequency * 3)),
-                    description: `${count} transactions en une journée`,
-                    transactions: dayTransactions
-                });
+        // Grouper par catégorie et analyser la fréquence
+        const categoryGroups = {};
+        transactions.forEach(transaction => {
+            const category = transaction.category || 'Non catégorisé';
+            if (!categoryGroups[category]) {
+                categoryGroups[category] = [];
+            }
+            categoryGroups[category].push(transaction);
+        });
+        
+        Object.entries(categoryGroups).forEach(([category, categoryTransactions]) => {
+            if (categoryTransactions.length >= 5) {
+                // Analyser les intervalles entre transactions
+                const sortedTransactions = categoryTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+                const intervals = [];
+                
+                for (let i = 1; i < sortedTransactions.length; i++) {
+                    const prevDate = new Date(sortedTransactions[i - 1].date);
+                    const currentDate = new Date(sortedTransactions[i].date);
+                    const diffDays = (currentDate - prevDate) / (1000 * 60 * 60 * 24);
+                    intervals.push(diffDays);
+                }
+                
+                const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+                const lastInterval = intervals[intervals.length - 1];
+                
+                // Détecter les anomalies de fréquence (transaction trop tôt ou trop tard)
+                if (Math.abs(lastInterval - avgInterval) > avgInterval * 0.5) {
+                    anomalies.push({
+                        type: 'frequency',
+                        category: category,
+                        severity: Math.min(1, Math.abs(lastInterval - avgInterval) / avgInterval),
+                        description: `Fréquence inhabituelle pour ${category}`,
+                        expectedInterval: `${avgInterval.toFixed(0)} jours`,
+                        actualInterval: `${lastInterval.toFixed(0)} jours`
+                    });
+                }
             }
         });
         
@@ -874,90 +1173,69 @@ class AnomalyDetector {
 }
 
 class TrendAnalyzer {
-    analyzeLongTermTrends(data, periods = 12) {
-        if (data.length < periods) return null;
+    analyzeTrend(data) {
+        if (!data || data.length < 3) {
+            return { direction: 'insufficient_data', strength: 0, confidence: 0 };
+        }
         
-        const recent = data.slice(-periods);
-        const expenses = recent.map(d => d.totalExpenses);
+        // Calcul de la tendance par régression linéaire
+        const values = data.map((item, index) => ({ x: index, y: item }));
+        const regression = this.calculateLinearRegression(values);
+        
+        // Déterminer la direction
+        let direction;
+        if (Math.abs(regression.slope) < 0.1) {
+            direction = 'stable';
+        } else if (regression.slope > 0) {
+            direction = 'increasing';
+        } else {
+            direction = 'decreasing';
+        }
+        
+        // Calculer la force de la tendance
+        const strength = Math.min(1, Math.abs(regression.slope) / (data[0] || 1));
+        
+        // Calculer la confiance basée sur le R²
+        const rSquared = this.calculateRSquared(values, regression);
         
         return {
-            trend: this.calculateTrendDirection(expenses),
-            volatility: this.calculateVolatility(expenses),
-            cycles: this.detectCycles(expenses),
-            acceleration: this.calculateAcceleration(expenses)
+            direction: direction,
+            strength: strength,
+            confidence: rSquared,
+            slope: regression.slope
         };
     }
     
-    calculateTrendDirection(values) {
-        const firstHalf = values.slice(0, Math.floor(values.length / 2));
-        const secondHalf = values.slice(Math.floor(values.length / 2));
+    calculateLinearRegression(points) {
+        const n = points.length;
+        const sumX = points.reduce((sum, point) => sum + point.x, 0);
+        const sumY = points.reduce((sum, point) => sum + point.y, 0);
+        const sumXY = points.reduce((sum, point) => sum + point.x * point.y, 0);
+        const sumXX = points.reduce((sum, point) => sum + point.x * point.x, 0);
         
-        const firstAvg = firstHalf.reduce((sum, v) => sum + v, 0) / firstHalf.length;
-        const secondAvg = secondHalf.reduce((sum, v) => sum + v, 0) / secondHalf.length;
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
         
-        const change = (secondAvg - firstAvg) / firstAvg;
-        
-        return {
-            direction: change > 0.05 ? 'increasing' : change < -0.05 ? 'decreasing' : 'stable',
-            magnitude: Math.abs(change),
-            percentage: change * 100
-        };
+        return { slope, intercept };
     }
     
-    calculateAcceleration(values) {
-        if (values.length < 3) return 0;
+    calculateRSquared(points, regression) {
+        const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
         
-        const velocities = [];
-        for (let i = 1; i < values.length; i++) {
-            velocities.push(values[i] - values[i - 1]);
-        }
+        let totalSumSquares = 0;
+        let residualSumSquares = 0;
         
-        let acceleration = 0;
-        for (let i = 1; i < velocities.length; i++) {
-            acceleration += velocities[i] - velocities[i - 1];
-        }
+        points.forEach(point => {
+            const predicted = regression.intercept + regression.slope * point.x;
+            totalSumSquares += Math.pow(point.y - meanY, 2);
+            residualSumSquares += Math.pow(point.y - predicted, 2);
+        });
         
-        return acceleration / (velocities.length - 1);
+        return totalSumSquares > 0 ? Math.max(0, 1 - (residualSumSquares / totalSumSquares)) : 0;
     }
-    
-    detectCycles(values) {
-        // Détection simple de cycles en cherchant des patterns répétitifs
-        const cycles = [];
-        
-        for (let period = 2; period <= Math.floor(values.length / 2); period++) {
-            const correlation = this.calculateAutocorrelation(values, period);
-            if (correlation > 0.7) {
-                cycles.push({
-                    period,
-                    strength: correlation,
-                    description: `Cycle de ${period} mois détecté`
-                });
-            }
-        }
-        
-        return cycles.sort((a, b) => b.strength - a.strength);
-    }
-    
-    calculateAutocorrelation(values, lag) {
-        if (lag >= values.length) return 0;
-        
-        const n = values.length - lag;
-        const mean1 = values.slice(0, n).reduce((sum, v) => sum + v, 0) / n;
-        const mean2 = values.slice(lag).reduce((sum, v) => sum + v, 0) / n;
-        
-        let numerator = 0;
-        let denom1 = 0;
-        let denom2 = 0;
-        
-        for (let i = 0; i < n; i++) {
-            const diff1 = values[i] - mean1;
-            const diff2 = values[i + lag] - mean2;
-            
-            numerator += diff1 * diff2;
-            denom1 += diff1 * diff1;
-            denom2 += diff2 * diff2;
-        }
-        
-        return numerator / Math.sqrt(denom1 * denom2);
-    }
+}
+
+// Export de la classe principale
+if (typeof window !== 'undefined') {
+    window.BudgetPredictionsAI = BudgetPredictionsAI;
 }
