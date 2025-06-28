@@ -10,6 +10,7 @@
 	<link rel="stylesheet" href="css/components.css">
 	<link rel="stylesheet" href="css/theme-components.css">
 	<link rel="stylesheet" href="css/enhanced-features.css">
+	<link rel="stylesheet" href="css/ai-categorization.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
 </head>
@@ -393,6 +394,87 @@
 							<strong>💰 Total: <span id="fixed-total-display">0.00 €</span></strong>
 						</div>
 					</div>
+					
+					<!-- 🎯 SECTION IA À AJOUTER APRÈS LA SECTION "Dépenses Contraintes" -->
+            <div class="settings-card">
+                <h3>🧠 Intelligence Artificielle</h3>
+                <div class="settings-group">
+                    <h4>Catégorisation Automatique</h4>
+                    <p class="settings-description">
+                        L'IA apprend de vos habitudes pour suggérer automatiquement les catégories 
+                        lors de l'ajout de nouvelles transactions.
+                    </p>
+                    
+                    <!-- Statistiques de l'IA -->
+                    <div class="ai-stats-panel" id="ai-stats-panel">
+                        <h5>📊 Statistiques d'Apprentissage</h5>
+                        <div class="ai-stats-grid" id="ai-stats-grid">
+                            <div class="ai-stat-item">
+                                <span class="ai-stat-value" id="ai-total-learned">0</span>
+                                <span class="ai-stat-label">Associations apprises</span>
+                            </div>
+                            <div class="ai-stat-item">
+                                <span class="ai-stat-value" id="ai-corrections">0</span>
+                                <span class="ai-stat-label">Corrections</span>
+                            </div>
+                            <div class="ai-stat-item">
+                                <span class="ai-stat-value" id="ai-accuracy">100%</span>
+                                <span class="ai-stat-label">Précision</span>
+                            </div>
+                            <div class="ai-stat-item">
+                                <span class="ai-stat-value" id="ai-categories">0</span>
+                                <span class="ai-stat-label">Catégories utilisées</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Boutons de gestion -->
+                        <div class="ai-management-buttons">
+                            <button class="ai-btn ai-btn-primary" id="refresh-ai-stats">
+                                🔄 Actualiser
+                            </button>
+                            <button class="ai-btn ai-btn-secondary" id="export-ai-learning">
+                                💾 Exporter Apprentissage
+                            </button>
+                            <button class="ai-btn ai-btn-secondary" id="import-ai-learning">
+                                📂 Importer Apprentissage
+                            </button>
+                            <button class="ai-btn ai-btn-danger" id="reset-ai-learning">
+                                🗑️ Réinitialiser
+                            </button>
+                        </div>
+                        
+                        <!-- Input caché pour l'import -->
+                        <input type="file" id="ai-import-file" accept=".json" style="display: none;">
+                    </div>
+                    
+                    <!-- Mode test de l'IA -->
+                    <div class="ai-test-mode" id="ai-test-mode">
+                        <h5>🔬 Tester l'IA</h5>
+                        <p style="font-size: 12px; color: #666; margin-bottom: 12px;">
+                            Testez les suggestions de l'IA en saisissant un libellé de transaction.
+                        </p>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <input type="text" 
+                                   class="ai-test-input" 
+                                   id="ai-test-label" 
+                                   placeholder="Ex: Carrefour Express, Station Total, Netflix..."
+                                   style="flex: 1; min-width: 200px;">
+                            <input type="number" 
+                                   class="ai-test-input" 
+                                   id="ai-test-amount" 
+                                   placeholder="Montant (optionnel)"
+                                   style="width: 120px;">
+                            <button class="ai-btn ai-btn-primary" id="test-ai-suggestion">
+                                🧠 Tester
+                            </button>
+                        </div>
+                        <div class="ai-test-result" id="ai-test-result" style="display: none;">
+                            <!-- Résultat du test apparaîtra ici -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 🎯 FIN DE LA SECTION IA -->
 				
                     <div class="settings-card">
                         <h3>💾 Données</h3>
@@ -414,7 +496,8 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+<!-- Scripts -->
+<script src="js/auto-categorization.js"></script>
 <!-- 1. Utilitaires et helpers d'abord --> 
 <script src="js/utils.js"></script> 
 <!-- 2. Classes de base --> 

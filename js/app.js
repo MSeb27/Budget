@@ -49,7 +49,222 @@ class BudgetCalendar {
         setTimeout(() => {
             this.initializeCharts();
         }, 500);
+		
+		// Initialiser l'IA de catégorisation (APRÈS le TransactionManager)
+		this.initializeAI();
+		// Initialiser les paramètres IA
+		setTimeout(() => {
+			this.initializeAISettings();
+		}, 1000);
+		
 	}
+
+	// ===== INITIALISATION DE L'IA =====
+	initializeAI() {
+    try {
+        // Initialiser l'IA de catégorisation automatique
+        this.aiCategorization = new AutoCategorizationAI(this.transactionManager);
+        this.aiUI = new AutoCategorizationUI(this.aiCategorization);
+        
+        console.log('🧠 IA de catégorisation initialisée');
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation de l\'IA:', error);
+        this.aiCategorization = null;
+        this.aiUI = null;
+    }
+}
+
+	initializeAISettings() {
+    // Boutons de gestion
+    const refreshStatsBtn = document.getElementById('refresh-ai-stats');
+    const exportLearningBtn = document.getElementById('export-ai-learning');
+    const importLearningBtn = document.getElementById('import-ai-learning');
+    const resetLearningBtn = document.getElementById('reset-ai-learning');
+    const importFileInput = document.getElementById('ai-import-file');
+    
+    // Bouton de test
+    const testBtn = document.getElementById('test-ai-suggestion');
+    const testLabelInput = document.getElementById('ai-test-label');
+    const testAmountInput = document.getElementById('ai-test-amount');
+    const testResult = document.getElementById('ai-test-result');
+
+    // Event listeners
+    if (refreshStatsBtn) {
+        refreshStatsBtn.addEventListener('click', () => this.updateAIStats());
+    }
+    
+    if (exportLearningBtn) {
+        exportLearningBtn.addEventListener('click', () => this.exportAILearning());
+    }
+    
+    if (importLearningBtn) {
+        importLearningBtn.addEventListener('click', () => {
+            if (importFileInput) importFileInput.click();
+        });
+    }
+    
+    if (importFileInput) {
+        importFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.importAILearning(e.target.files[0]);
+                e.target.value = ''; // Reset input
+            }
+        });
+    }
+    
+    if (resetLearningBtn) {
+        resetLearningBtn.addEventListener('click', () => {
+            if (confirm('Êtes-vous sûr de vouloir réinitialiser l\'apprentissage de l\'IA ? Cette action est irréversible.')) {
+                this.resetAILearning();
+                this.updateAIStats();
+            }
+        });
+    }
+    
+    if (testBtn) {
+        testBtn.addEventListener('click', () => this.performAITest());
+    }
+    
+    // Test en temps réel quand on tape
+    if (testLabelInput) {
+        testLabelInput.addEventListener('input', this.debounce(() => {
+            if (testLabelInput.value.length >= 3) {
+                this.performAITest(true); // Mode aperçu
+            } else if (testResult) {
+                testResult.style.display = 'none';
+            }
+        }, 500));
+    }
+    
+    // Charger les statistiques initiales
+    this.updateAIStats();
+    
+    console.log('✅ Section IA des paramètres initialisée');
+}
+
+// ===== FONCTION DEBOUNCE =====
+debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// ===== MISE À JOUR DES STATISTIQUES IA =====
+updateAIStats() {
+    const stats = this.getAIStatistics();
+    
+    if (!stats) {
+        // IA non disponible
+        const elements = ['ai-total-learned', 'ai-corrections', 'ai-accuracy', 'ai-categories'];
+        elements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = 'N/A';
+        });
+        return;
+    }
+    
+    // Mettre à jour les valeurs
+    const totalElement = document.getElementById('ai-total-learned');
+    const correctionsElement = document.getElementById('ai-corrections');
+    const accuracyElement = document.getElementById('ai-accuracy');
+    const categoriesElement = document.getElementById('ai-categories');
+    
+    if (totalElement) totalElement.textContent = stats.totalLearned;
+    if (correctionsElement) correctionsElement.textContent = stats.corrections;
+    if (categoriesElement) categoriesElement.textContent = Object.keys(stats.categoryStats).length;
+    
+    if (accuracyElement) {
+        accuracyElement.textContent = stats.accuracyRate.toFixed(1) + '%';
+        
+        // Mettre à jour les couleurs selon la performance
+        if (stats.accuracyRate >= 80) {
+            accuracyElement.style.color = '#4caf50';
+        } else if (stats.accuracyRate >= 60) {
+            accuracyElement.style.color = '#ff9800';
+        } else {
+            accuracyElement.style.color = '#f44336';
+        }
+    }
+    
+    console.log('📊 Statistiques IA mises à jour:', stats);
+}
+
+// ===== TEST DE L'IA =====
+performAITest(isPreview = false) {
+    const labelInput = document.getElementById('ai-test-label');
+    const amountInput = document.getElementById('ai-test-amount');
+    const resultDiv = document.getElementById('ai-test-result');
+    
+    if (!labelInput || !this.aiCategorization) {
+        console.warn('⚠️ Elements manquants pour le test IA');
+        return;
+    }
+    
+    const label = labelInput.value.trim();
+    const amount = amountInput.value ? parseFloat(amountInput.value) : null;
+    
+    if (label.length < 3) {
+        if (resultDiv) resultDiv.style.display = 'none';
+        return;
+    }
+    
+    try {
+        // Obtenir les suggestions multiples
+        const suggestions = this.aiCategorization.getMultipleSuggestions(label, amount, 'expense', 3);
+        
+        // Formater le résultat
+        let resultHTML = `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 16px;">🧠</span>
+                <strong>Suggestions pour "${label}"${amount ? ` (${amount}€)` : ''}</strong>
+            </div>
+        `;
+        
+        suggestions.forEach((suggestion, index) => {
+            const confidenceClass = suggestion.confidence >= 0.8 ? 'high' : 
+                                   suggestion.confidence >= 0.6 ? 'medium' : 'low';
+            const confidenceText = suggestion.confidence >= 0.8 ? 'Très confiant' : 
+                                  suggestion.confidence >= 0.6 ? 'Confiant' : 'Peu confiant';
+            
+            resultHTML += `
+                <div style="display: flex; align-items: center; justify-content: space-between; 
+                            padding: 8px; margin: 4px 0; background: ${index === 0 ? '#e8f5e8' : '#f8f9fa'}; 
+                            border: 1px solid ${index === 0 ? '#4caf50' : '#e9ecef'}; border-radius: 4px;">
+                    <div>
+                        <strong>${suggestion.category}</strong>
+                        <div style="font-size: 10px; color: #666;">${suggestion.reason}</div>
+                    </div>
+                    <span class="ai-confidence ${confidenceClass}" style="margin-left: 8px; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; font-weight: bold;">
+                        ${confidenceText}
+                    </span>
+                </div>
+            `;
+        });
+        
+        if (resultDiv) {
+            resultDiv.innerHTML = resultHTML;
+            resultDiv.style.display = 'block';
+        }
+        
+        if (!isPreview) {
+            console.log('🧠 Test IA:', { label, amount, suggestions });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur lors du test IA:', error);
+        if (resultDiv) {
+            resultDiv.innerHTML = '<div style="color: #f44336;">❌ Erreur lors du test</div>';
+            resultDiv.style.display = 'block';
+        }
+    }
+}
+
 
 
 	// Initalize 
@@ -197,7 +412,7 @@ class BudgetCalendar {
                         break;
                         
                     case 'settings':
-                        // Pas d'action spécifique nécessaire
+                        this.initializeAISettings(); // Assurer que les listeners sont configurés
                         break;
                 }
             }, 50); // Délai court pour s'assurer que l'onglet est activé
@@ -1516,6 +1731,14 @@ setupEditModalEventListeners(modal, originalTransaction) {
     const form = modal.querySelector('#edit-transaction-form');
     const categorySelect = modal.querySelector('#edit-category');
     const labelInput = modal.querySelector('#edit-label');
+    const amountInput = modal.querySelector('#edit-amount');
+    const typeInputs = modal.querySelectorAll('input[name="edit-transaction-type"]');
+    
+    // *** NOUVEAU : Intégration de l'IA de catégorisation pour l'édition ***
+    if (this.aiUI && labelInput && categorySelect) {
+        this.aiUI.addSuggestionToForm(labelInput, categorySelect, amountInput, typeInputs[1]);
+        console.log('🧠 IA de catégorisation activée pour l\'édition');
+    }
     
     // Auto-remplissage du libellé basé sur la catégorie (même logique que setupModalEventListeners)
     categorySelect.addEventListener('change', () => {
@@ -1572,13 +1795,12 @@ autoFillConstrainedExpenseInEditModal(category, modal) {
 }
 
 // handleEditModalSubmit() - Méthode basée sur handleModalSubmit() existante
-// Dans app.js, remplacer la méthode handleEditModalSubmit() par cette version corrigée :
-
+// ===== MODIFICATION DE handleEditModalSubmit POUR APPRENTISSAGE IA =====
 handleEditModalSubmit(modal, originalTransaction) {
-    const errorElement = modal.querySelector('#edit-error-message');
-    errorElement.textContent = '';
+    const errorElement = modal.querySelector('#edit-modal-error-message');
+    if (errorElement) errorElement.textContent = '';
 
-    // Récupérer les données du formulaire directement depuis les champs
+    // Récupérer les nouvelles données
     const updatedData = {
         label: modal.querySelector('#edit-label').value.trim(),
         amount: parseFloat(modal.querySelector('#edit-amount').value),
@@ -1587,129 +1809,224 @@ handleEditModalSubmit(modal, originalTransaction) {
         type: modal.querySelector('#edit-type-expense').checked ? 'expense' : 'income'
     };
 
-    // Validation
-    const error = this.validateTransaction(updatedData);
-    if (error) {
-        errorElement.textContent = error;
-        return;
-    }
-
     try {
-        // *** SOLUTION : Utiliser directement l'ID original de la transaction ***
-        console.log('🔍 Transaction originale:', originalTransaction);
-        console.log('🔍 ID original:', originalTransaction.id, 'Type:', typeof originalTransaction.id);
-        console.log('🔍 Nouvelles données:', updatedData);
-
-        // Conversion de l'ID
-        const transactionId = parseInt(originalTransaction.id);
-        console.log('🔍 ID converti:', transactionId, 'Type:', typeof transactionId);
-
-        if (this.transactionManager) {
-            // *** NOUVELLE APPROCHE : Recherche et mise à jour en une seule opération ***
-            const allTransactions = this.transactionManager.getAllTransactions();
-            console.log('📋 Nombre total de transactions:', allTransactions.length);
+        // Mettre à jour la transaction
+        this.transactionManager.updateTransaction(originalTransaction.id, updatedData);
+        
+        // *** NOUVEAU : Apprentissage IA en cas de changement de catégorie ***
+        if (this.aiCategorization && 
+            updatedData.label && 
+            updatedData.category &&
+            updatedData.category !== originalTransaction.category) {
             
-            // Rechercher la transaction par plusieurs critères
-            let targetTransaction = null;
-            let targetIndex = -1;
-            
-            // 1. D'abord par ID exact
-            targetIndex = allTransactions.findIndex(t => t.id === transactionId);
-            if (targetIndex !== -1) {
-                targetTransaction = allTransactions[targetIndex];
-                console.log('✅ Transaction trouvée par ID exact:', targetTransaction.id);
-            }
-            
-            // 2. Si pas trouvé, chercher par critères multiples
-            if (targetIndex === -1) {
-                targetIndex = allTransactions.findIndex(t => 
-                    t.label === originalTransaction.label && 
-                    t.amount === originalTransaction.amount &&
-                    t.date === originalTransaction.date &&
-                    t.category === originalTransaction.category
-                );
-                
-                if (targetIndex !== -1) {
-                    targetTransaction = allTransactions[targetIndex];
-                    console.log('✅ Transaction trouvée par critères alternatifs:', targetTransaction.id);
-                }
-            }
-            
-            if (targetIndex === -1) {
-                throw new Error('Transaction introuvable. La transaction a peut-être été supprimée par ailleurs.');
-            }
-            
-            // *** MISE À JOUR DIRECTE dans le tableau du TransactionManager ***
-            // Créer la transaction mise à jour en conservant l'ID original
-            const updatedTransaction = {
-                ...targetTransaction,
-                ...updatedData,
-                id: targetTransaction.id // Conserver l'ID trouvé
-            };
-            
-            // Validation des nouvelles données
-            const validationError = this.transactionManager.validateTransaction(updatedTransaction);
-            if (validationError) {
-                throw new Error(validationError);
-            }
-            
-            // Mettre à jour directement dans le tableau
-            this.transactionManager.transactions[targetIndex] = updatedTransaction;
-            
-            // Sauvegarder
-            this.transactionManager.saveTransactions();
-            this.transactionManager.triggerTransactionChange();
-            
-            // Synchroniser les données locales
-            this.transactions = this.transactionManager.getAllTransactions();
-            
-            console.log('✅ Transaction mise à jour avec succès:', updatedTransaction.id);
-            
-        } else {
-            // Fallback vers l'ancienne méthode
-            console.log('🔄 Utilisation de la méthode fallback');
-            const index = this.transactions.findIndex(t => 
-                parseInt(t.id) === transactionId || 
-                t.id === originalTransaction.id ||
-                (t.label === originalTransaction.label && 
-                 t.amount === originalTransaction.amount &&
-                 t.date === originalTransaction.date)
+            this.aiCategorization.learnFromUser(
+                updatedData.label, 
+                updatedData.category, 
+                true // C'est une correction
             );
-            
-            if (index !== -1) {
-                this.transactions[index] = { 
-                    ...this.transactions[index], 
-                    ...updatedData 
-                };
-                StorageManager.saveTransactions(this.transactions);
-                console.log('✅ Transaction mise à jour via fallback');
-            } else {
-                throw new Error('Transaction non trouvée dans le tableau local');
-            }
+            console.log(`🧠 IA corrige: "${updatedData.label}" → "${updatedData.category}" (était: "${originalTransaction.category}")`);
         }
 
         // Mettre à jour l'affichage
-        this.updateAllComponents();
+        this.updateCalendar();
+        this.updateTransactionsList();
         
         // Fermer la modal
         modal.remove();
         
-        console.log('✅ Transaction modifiée avec succès');
+        // Feedback utilisateur
+        this.showNotification(`Transaction modifiée avec succès`, 'success');
         
     } catch (error) {
-        console.error('❌ Erreur lors de la modification:', error);
-        errorElement.textContent = error.message;
-        
-        // Débogage en cas d'erreur
-        console.log('🔍 Détails de débogage:');
-        console.log('- Transaction originale:', originalTransaction);
-        console.log('- TransactionManager disponible:', !!this.transactionManager);
-        if (this.transactionManager) {
-            console.log('- Nombre de transactions:', this.transactionManager.getAllTransactions().length);
-            console.log('- Liste des IDs:', this.transactionManager.getAllTransactions().map(t => ({ id: t.id, type: typeof t.id, label: t.label })));
+        if (errorElement) {
+            errorElement.textContent = error.message;
+            errorElement.style.color = 'var(--danger-color)';
         }
+        console.error('Erreur lors de la modification:', error);
     }
 }
+
+// ===== NOUVELLE MÉTHODE POUR AFFICHER LES NOTIFICATIONS =====
+showNotification(message, type = 'info') {
+    // Créer l'élément de notification
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 16px;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10001;
+        font-size: 14px;
+        font-weight: 500;
+        max-width: 300px;
+        animation: slideInRight 0.3s ease-out;
+        ${type === 'success' ? 'background: #4caf50; color: white;' : 
+          type === 'error' ? 'background: #f44336; color: white;' : 
+          'background: #2196f3; color: white;'}
+    `;
+    
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Supprimer automatiquement après 3 secondes
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// ===== NOUVELLES MÉTHODES POUR GESTION DE L'IA =====
+
+// Obtenir les statistiques de l'IA
+getAIStatistics() {
+    if (!this.aiCategorization) {
+        return null;
+    }
+    return this.aiCategorization.getStatistics();
+}
+
+// Reset de l'apprentissage IA
+resetAILearning() {
+    if (!this.aiCategorization) {
+        this.showNotification('IA non disponible', 'error');
+        return;
+    }
+    
+    const stats = this.getAIStatistics();
+    
+    // Double confirmation si beaucoup de données
+    if (stats && stats.totalLearned > 50) {
+        const confirm2 = confirm(
+            `Vous avez ${stats.totalLearned} associations apprises. ` +
+            `Êtes-vous vraiment sûr de vouloir tout supprimer ?`
+        );
+        if (!confirm2) return;
+    }
+    
+    this.aiCategorization.resetLearning();
+    this.updateAIStats();
+    
+    // Vider le test
+    const testResult = document.getElementById('ai-test-result');
+    if (testResult) {
+        testResult.style.display = 'none';
+    }
+    
+    this.showNotification('Apprentissage IA réinitialisé', 'info');
+}
+
+// Export des données d'apprentissage IA
+exportAILearning() {
+    if (!this.aiCategorization) {
+        this.showNotification('IA non disponible', 'error');
+        return;
+    }
+    
+    try {
+        const stats = this.getAIStatistics();
+        const learningData = this.aiCategorization.exportLearningData();
+        
+        // Créer un fichier enrichi avec métadonnées
+        const exportData = {
+            version: '1.0',
+            exportDate: new Date().toISOString(),
+            statistics: stats,
+            learningData: JSON.parse(learningData)
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+            type: 'application/json' 
+        });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `budget-ai-learning-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        this.showNotification(`Apprentissage IA exporté (${stats.totalLearned} associations)`, 'success');
+        
+    } catch (error) {
+        console.error('Erreur export IA:', error);
+        this.showNotification('Erreur lors de l\'export IA', 'error');
+    }
+}
+
+// Import des données d'apprentissage IA
+importAILearning(file) {
+    if (!this.aiCategorization) {
+        this.showNotification('IA non disponible', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            
+            // Vérifier le format du fichier
+            if (importedData.version && importedData.learningData) {
+                // Nouveau format avec métadonnées
+                const success = this.aiCategorization.importLearningData(
+                    JSON.stringify(importedData.learningData)
+                );
+                
+                if (success) {
+                    this.updateAIStats();
+                    this.showNotification(
+                        `Apprentissage IA importé (${importedData.statistics?.totalLearned || 'N/A'} associations)`, 
+                        'success'
+                    );
+                } else {
+                    this.showNotification('Erreur lors de l\'import IA', 'error');
+                }
+            } else {
+                // Ancien format direct
+                const success = this.aiCategorization.importLearningData(e.target.result);
+                
+                if (success) {
+                    this.updateAIStats();
+                    this.showNotification('Apprentissage IA importé', 'success');
+                } else {
+                    this.showNotification('Erreur lors de l\'import IA', 'error');
+                }
+            }
+            
+        } catch (error) {
+            console.error('Erreur import IA:', error);
+            this.showNotification('Fichier IA invalide ou corrompu', 'error');
+        }
+    };
+    
+    reader.onerror = () => {
+        this.showNotification('Erreur lors de la lecture du fichier', 'error');
+    };
+    
+    reader.readAsText(file);
+}
+
+// Test de suggestion IA (pour debugging)
+testAISuggestion(label, amount = null, type = 'expense') {
+    if (!this.aiCategorization) {
+        console.log('❌ IA non disponible');
+        return;
+    }
+    
+    const suggestion = this.aiCategorization.suggestCategory(label, amount, type);
+    console.log('🧠 Test IA:', { label, amount, type, suggestion });
+    return suggestion;
+}
+
 // ALTERNATIVE : Méthode de récupération de transaction plus robuste
 getTransactionForEdit(transactionId) {
     // Essayer plusieurs méthodes pour trouver la transaction
@@ -2049,37 +2366,50 @@ openTransactionModal(date) {
     });
 }
 
-    // ===== SETUP DES EVENT LISTENERS POUR LA MODAL =====
-    setupModalEventListeners(modal, date) {
-        const form = modal.querySelector('#modal-transaction-form');
-        const categorySelect = modal.querySelector('#modal-category');
-        const labelInput = modal.querySelector('#modal-label');
-        
-        // Auto-remplissage du libellé basé sur la catégorie
-        categorySelect.addEventListener('change', () => {
-            if (categorySelect.value && !labelInput.value) {
-                labelInput.value = categorySelect.value;
-            }
-            
-            // Auto-remplissage depuis les dépenses contraintes
-            this.autoFillConstrainedExpenseInModal(categorySelect.value, modal);
-        });
-
-        // Gestion de la soumission du formulaire
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleModalSubmit(modal, date);
-        });
-
-        // Gestion des touches clavier
-        modal.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                modal.remove();
-            }
+setupEditModalEventListeners(modal, originalTransaction) {
+    const form = modal.querySelector('#edit-transaction-form');
+    const categorySelect = modal.querySelector('#edit-category');
+    const labelInput = modal.querySelector('#edit-label');
+    const amountInput = modal.querySelector('#edit-amount');
+    const typeInputs = modal.querySelectorAll('input[name="edit-transaction-type"]');
+    
+    // *** INTÉGRATION IA : Activer les suggestions pour l'édition ***
+    if (this.aiUI && labelInput && categorySelect) {
+        this.aiUI.addSuggestionToForm(labelInput, categorySelect, amountInput, typeInputs[0]);
+        console.log('🧠 IA de catégorisation activée pour l\'édition');
+    } else {
+        console.warn('⚠️ IA non disponible pour l\'édition:', {
+            aiUI: !!this.aiUI,
+            labelInput: !!labelInput,
+            categorySelect: !!categorySelect
         });
     }
+    
+    // Auto-remplissage du libellé basé sur la catégorie
+    categorySelect.addEventListener('change', () => {
+        if (categorySelect.value && !labelInput.value) {
+            labelInput.value = categorySelect.value;
+        }
+        
+        // Auto-remplissage depuis les dépenses contraintes
+        this.autoFillConstrainedExpenseInEditModal(categorySelect.value, modal);
+    });
 
-    // ===== AUTO-REMPLISSAGE DES DÉPENSES CONTRAINTES DANS LA MODAL =====
+    // Gestion de la soumission du formulaire (MODIFICATION au lieu d'ajout)
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleEditModalSubmit(modal, originalTransaction);
+    });
+
+    // Gestion des touches clavier
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+        }
+    });
+}
+ 
+// ===== AUTO-REMPLISSAGE DES DÉPENSES CONTRAINTES DANS LA MODAL =====
     autoFillConstrainedExpenseInModal(category, modal) {
         const constrainedExpenseMapping = {
             'Loyer': 'loyer',
@@ -2109,51 +2439,51 @@ openTransactionModal(date) {
     }
 
     // ===== GESTION DE LA SOUMISSION DE LA MODAL =====
-    handleModalSubmit(modal, date) {
-        const errorElement = modal.querySelector('#modal-error-message');
-        errorElement.textContent = '';
+	// ===== MODIFICATION DE handleModalSubmit POUR APPRENTISSAGE IA =====
+	handleModalSubmit(modal, date) {
+		const errorElement = modal.querySelector('#modal-error-message');
+		errorElement.textContent = '';
 
-        // Récupérer les données du formulaire
-        const transactionData = {
-            label: modal.querySelector('#modal-label').value.trim(),
-            amount: parseFloat(modal.querySelector('#modal-amount').value),
-            category: modal.querySelector('#modal-category').value,
-            date: this.formatDateString(date),
-            type: modal.querySelector('#modal-type-expense').checked ? 'expense' : 'income'
-        };
+    // Récupérer les données du formulaire
+    const transactionData = {
+        label: modal.querySelector('#modal-label').value.trim(),
+        amount: parseFloat(modal.querySelector('#modal-amount').value),
+        category: modal.querySelector('#modal-category').value,
+        date: this.formatDateString(date),
+        type: modal.querySelector('#modal-type-expense').checked ? 'expense' : 'income'
+    };
 
-        // Validation
-        const error = this.validateTransaction(transactionData);
-        if (error) {
-            errorElement.textContent = error;
-            return;
+    try {
+        // Ajouter la transaction
+        const newTransaction = this.transactionManager.addTransaction(transactionData);
+        
+        // *** NOUVEAU : Apprentissage IA après ajout réussi ***
+        if (this.aiCategorization && transactionData.label && transactionData.category) {
+            this.aiCategorization.learnFromUser(
+                transactionData.label, 
+                transactionData.category, 
+                false // Ce n'est pas une correction
+            );
+            console.log(`🧠 IA apprend: "${transactionData.label}" → "${transactionData.category}"`);
         }
 
-        try {
-            // Ajouter la transaction
-            transactionData.id = Date.now();
-            
-            if (this.transactionManager) {
-                this.transactionManager.addTransaction(transactionData);
-                this.transactions = this.transactionManager.getAllTransactions();
-            } else {
-                this.transactions.push(transactionData);
-                StorageManager.saveTransactions(this.transactions);
-            }
-
-            // Mettre à jour l'affichage
-            this.updateAllComponents();
-            
-            // Fermer la modal
-            modal.remove();
-            
-            console.log('✅ Transaction ajoutée via modal avec succès');
-            
-        } catch (error) {
-            console.error('❌ Erreur lors de l\'ajout via modal:', error);
-            errorElement.textContent = error.message;
-        }
+        // Mettre à jour l'affichage
+        this.updateCalendar();
+        this.updateTransactionsList();
+        
+        // Fermer la modal
+        modal.remove();
+        
+        // Feedback utilisateur
+        this.showNotification(`Transaction "${transactionData.label}" ajoutée avec succès`, 'success');
+        
+    } catch (error) {
+        errorElement.textContent = error.message;
+        errorElement.style.color = 'var(--danger-color)';
+        console.error('Erreur lors de l\'ajout:', error);
     }
+}
+
 
     // ===== NOUVELLE MÉTHODE POUR OUVRIR LA MODAL =====
     openTransactionModal(date) {
@@ -2277,36 +2607,50 @@ openTransactionModal(date) {
         });
     }
 
-    // ===== SETUP DES EVENT LISTENERS POUR LA MODAL =====
-    setupModalEventListeners(modal, date) {
-        const form = modal.querySelector('#modal-transaction-form');
-        const categorySelect = modal.querySelector('#modal-category');
-        const labelInput = modal.querySelector('#modal-label');
-        
-        // Auto-remplissage du libellé basé sur la catégorie
-        categorySelect.addEventListener('change', () => {
-            if (categorySelect.value && !labelInput.value) {
-                labelInput.value = categorySelect.value;
-            }
-            
-            // Auto-remplissage depuis les dépenses contraintes
-            this.autoFillConstrainedExpenseInModal(categorySelect.value, modal);
-        });
-
-        // Gestion de la soumission du formulaire
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleModalSubmit(modal, date);
-        });
-
-        // Gestion des touches clavier
-        modal.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                modal.remove();
-            }
+    // ===== SETUP DES EVENT LISTENERS POUR LA MODAL D'AJOUT =====
+setupModalEventListeners(modal, date) {
+    const form = modal.querySelector('#modal-transaction-form');
+    const categorySelect = modal.querySelector('#modal-category');
+    const labelInput = modal.querySelector('#modal-label');
+    const amountInput = modal.querySelector('#modal-amount');
+    const typeInputs = modal.querySelectorAll('input[name="modal-type"]');
+    
+    // *** INT�GRATION IA : Activer les suggestions automatiques ***
+    if (this.aiUI && labelInput && categorySelect) {
+        this.aiUI.addSuggestionToForm(labelInput, categorySelect, amountInput, typeInputs[0]);
+        console.log('?? IA de cat�gorisation activ�e pour cette modal');
+    } else {
+        console.warn('?? IA non disponible:', {
+            aiUI: !!this.aiUI,
+            labelInput: !!labelInput,
+            categorySelect: !!categorySelect
         });
     }
+    
+    // Auto-remplissage du libell� bas� sur la cat�gorie
+    categorySelect.addEventListener('change', () => {
+        if (categorySelect.value && !labelInput.value) {
+            labelInput.value = categorySelect.value;
+        }
+        
+        // Auto-remplissage depuis les d�penses contraintes
+        this.autoFillConstrainedExpenseInModal(categorySelect.value, modal);
+    });
 
+    // Gestion de la soumission du formulaire
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleModalSubmit(modal, date);
+    });
+
+    // Gestion des touches clavier
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+        }
+    });
+}
+	
     // ===== AUTO-REMPLISSAGE DES DÉPENSES CONTRAINTES DANS LA MODAL =====
     autoFillConstrainedExpenseInModal(category, modal) {
         const constrainedExpenseMapping = {
