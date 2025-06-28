@@ -276,7 +276,23 @@ setupEventListeners() {
         // Theme listener
         this.setupThemeEventListeners();
         
+		// Setup de l'incrémentation personnalisée pour les dépenses fixes
+		const fixedExpenseInputs = [
+			'fixed-loyer', 'fixed-edf', 'fixed-internet', 'fixed-credit',
+			'fixed-impot', 'fixed-autres', 'fixed-assurance-maison', 'fixed-assurance-voiture'
+		];
+    
+		fixedExpenseInputs.forEach(inputId => {
+			const input = document.getElementById(inputId);
+			if (input) {
+				this.setupCustomIncrement(input);
+			}
+		});
+		
         console.log('✅ Event listeners configurés'); 
+		
+		
+		
     }
 
     // ===== UTILITY METHODS =====
@@ -1211,33 +1227,535 @@ updateThemePreview() {
     }
 	}
 	
-	editTransaction(id) {
-		const transaction = this.transactionManager?.getTransaction(id) || 
-							this.transactions.find(t => t.id === parseInt(id));
+editTransaction(id) {
+    console.log('🔧 Début édition transaction:', id);
+    
+    const transaction = this.transactionManager?.getTransaction(id) || 
+                        this.transactions.find(t => t.id === parseInt(id));
                        
-		if (!transaction) {
-			alert('Transaction introuvable');
-			return;
-		}
+    if (!transaction) {
+        alert('Transaction introuvable');
+        console.error('❌ Transaction non trouvée:', id);
+        return;
+    }
+
+    console.log('📝 Transaction trouvée pour édition:', transaction);
+
+    // ✅ Ouvrir la modal d'édition (même principe que le + du calendrier)
+    this.openEditTransactionModal(transaction);
+}
+
+// openEditTransactionModal Méthode basée sur openTransactionModal() existante
+openEditTransactionModal(transaction) {
+    // Formater la date pour l'affichage
+    const transactionDate = new Date(transaction.date);
+    const formattedDate = transactionDate.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
     
-		// Remplir le formulaire avec les données existantes
-		this.elements.label.value = transaction.label;
-		this.elements.amount.value = transaction.amount;
-		this.elements.category.value = transaction.category;
-		this.elements.date.value = transaction.date;
+    // Créer la modal d'édition (EXACTEMENT la même structure que openTransactionModal)
+    const modal = document.createElement('div');
+    modal.className = 'transaction-modal-overlay';
+    modal.innerHTML = `
+        <div class="transaction-modal">
+            <div class="transaction-modal-header">
+                <h3>✏️ Modifier la transaction</h3>
+                <div class="transaction-modal-subtitle">${formattedDate}</div>
+                <button class="modal-close" onclick="this.closest('.transaction-modal-overlay').remove()">×</button>
+            </div>
+            <div class="transaction-modal-content">
+                <form id="edit-transaction-form">
+                    <!-- Catégorie et Libellé -->
+                    <div class="modal-form-row">
+                        <div class="modal-form-group">
+                            <label for="edit-category">Catégorie</label>
+                            <select id="edit-category" required>
+                                <option value="">Sélectionner...</option>
+                                <option value="Alimentation">🍕 Alimentation</option>
+                                <option value="Assurance maison">🏠🛡️ Assurance maison</option>
+                                <option value="Assurance voiture">🚗🛡️ Assurance voiture</option>
+                                <option value="Cigarettes">🚬 Cigarettes</option>
+                                <option value="EDF-GDF">⚡ EDF-GDF</option>
+                                <option value="Essence">⛽ Essence</option>
+                                <option value="Impôt">🏛️ Impôt</option>
+                                <option value="Internet">🌐 Internet</option>
+                                <option value="Internet Outils">🔧 Internet Outils</option>
+                                <option value="Logement">🏠 Logement</option>
+                                <option value="Loisirs">🎬 Loisirs</option>
+                                <option value="Loyer">🏠 Loyer</option>
+                                <option value="Prêt">💳 Prêt</option>
+                                <option value="Remboursement crédit">🏦 Remboursement crédit</option>
+                                <option value="Retrait DAB">🏧 Retrait DAB</option>
+                                <option value="Salaire">💼 Salaire</option>
+                                <option value="Santé">🏥 Santé</option>
+                                <option value="Transport">🚗 Transport</option>
+                                <option value="Vêtements">👕 Vêtements</option>
+                                <option value="Autres">📦 Autres</option>
+                            </select>
+                        </div>
+                        <div class="modal-form-group">
+                            <label for="edit-label">Libellé</label>
+                            <input type="text" id="edit-label" placeholder="Description..." required>
+                        </div>
+                    </div>
+
+                    <!-- Montant et Date -->
+                    <div class="modal-form-row">
+                        <div class="modal-form-group">
+                            <label for="edit-amount">Montant (€)</label>
+                            <input type="number" id="edit-amount" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                        <div class="modal-form-group">
+                            <label for="edit-date">Date</label>
+                        </div>
+                    </div>
+
+                    <!-- Type de transaction -->
+                    <div class="modal-form-row">
+                        <div class="modal-form-group">
+                            <label for="edit-date">Date</label>
+                            <input type="date" id="edit-date" required>
+                        </div>
+                        
+                        <div class="modal-form-group">
+                            <label>Type</label>
+                            <div class="modal-radio-group">
+                                <label class="modal-radio-label expense-option">
+                                    <input type="radio" name="edit-type" value="expense" id="edit-type-expense" checked>
+                                    <span class="radio-custom"></span>
+                                    <span>💸 Dépense</span>
+                                </label>
+                                <label class="modal-radio-label income-option">
+                                    <input type="radio" name="edit-type" value="income" id="edit-type-income">
+                                    <span class="radio-custom"></span>
+                                    <span>💰 Revenu</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                  
+                    <!-- Boutons -->
+                    <div class="modal-form-actions">
+                        <button type="button" class="btn-secondary modal-cancel" onclick="this.closest('.transaction-modal-overlay').remove()">
+                            ❌ Annuler
+                        </button>
+                        <button type="submit" class="btn-success">
+                            ✏️ Modifier
+                        </button>
+                    </div>
+                    
+                    <div class="modal-error-message" id="edit-error-message"></div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    // Ajouter la modal au DOM
+    document.body.appendChild(modal);
+
+    // PRÉ-REMPLIR avec les données de la transaction
+    setTimeout(() => {
+    // Catégorie
+    const categoryInput = modal.querySelector('#edit-category');
+    if (categoryInput) {
+        categoryInput.value = transaction.category || '';
+    }
     
-		// Sélectionner le bon type
-		if (transaction.type === 'income') {
-			this.elements.typeIncome.checked = true;
-		} else {
-			this.elements.typeExpense.checked = true;
-		}
+    // Libellé
+    const labelInput = modal.querySelector('#edit-label');
+    if (labelInput) {
+        labelInput.value = transaction.label || '';
+    }
     
+    // Montant
+    const amountInput = modal.querySelector('#edit-amount');
+    if (amountInput) {
+        amountInput.value = Math.abs(transaction.amount).toFixed(2) || '';
+    }
     
-		// Passer en mode édition
-		this.setEditMode(id);
-	}
-	
+    // Date - GESTION AMÉLIORÉE
+    const dateInput = modal.querySelector('#edit-date');
+    if (dateInput && transaction.date) {
+        // Assurer le bon format YYYY-MM-DD pour l'input date
+        let dateValue = transaction.date;
+        
+        // Si la date est dans un autre format, la convertir
+        if (dateValue.includes('/')) {
+            // Format DD/MM/YYYY ou MM/DD/YYYY vers YYYY-MM-DD
+            const dateParts = dateValue.split('/');
+            if (dateParts.length === 3) {
+                // Assumer DD/MM/YYYY (format français)
+                const day = dateParts[0].padStart(2, '0');
+                const month = dateParts[1].padStart(2, '0');
+                const year = dateParts[2];
+                dateValue = `${year}-${month}-${day}`;
+            }
+        }
+        
+        // Vérifier que la date est au bon format
+        if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            dateInput.value = dateValue;
+        } else {
+            console.warn('Format de date non reconnu:', transaction.date);
+            // Utiliser la date actuelle par défaut
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            dateInput.value = todayStr;
+        }
+        
+        console.log('✅ Date pré-remplie:', dateInput.value);
+    }
+    
+    // Type de transaction
+    const expenseRadio = modal.querySelector('#edit-type-expense');
+    const incomeRadio = modal.querySelector('#edit-type-income');
+    
+    if (transaction.type === 'income' && incomeRadio) {
+        incomeRadio.checked = true;
+    } else if (expenseRadio) {
+        expenseRadio.checked = true;
+    }
+    
+    console.log('✅ Tous les champs pré-remplis');
+    
+}, 50); // Délai court pour s'assurer que les éléments existent
+    
+    // Sélectionner le bon type
+    if (transaction.type === 'income') {
+        modal.querySelector('#edit-type-income').checked = true;
+    } else {
+        modal.querySelector('#edit-type-expense').checked = true;
+    }
+
+    // Setup des event listeners
+    this.setupEditModalEventListeners(modal, transaction);
+    
+    // *** NOUVEAU : Setup de l'incrémentation personnalisée ***
+    this.setupCustomIncrement(modal.querySelector('#edit-amount'));
+
+    // Focus sur le premier champ
+    setTimeout(() => {
+        const categorySelect = modal.querySelector('#edit-category');
+        if (categorySelect) categorySelect.focus();
+    }, 100);
+
+    // Fermer en cliquant à l'extérieur
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+
+setupCustomIncrement(inputElement) {
+    if (!inputElement) return;
+    
+    // Intercepter les événements de molette de souris
+    inputElement.addEventListener('wheel', (e) => {
+        if (document.activeElement === inputElement) {
+            e.preventDefault();
+            
+            const currentValue = parseFloat(inputElement.value) || 0;
+            const increment = e.deltaY < 0 ? 1 : -1; // Molette vers haut = +1, vers bas = -1
+            const newValue = Math.max(0, currentValue + increment);
+            
+            inputElement.value = newValue.toFixed(2);
+            
+            // Déclencher l'événement input pour d'autres listeners
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    
+    // Intercepter les touches fléchées
+    inputElement.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const currentValue = parseFloat(inputElement.value) || 0;
+            const newValue = currentValue + 1;
+            inputElement.value = newValue.toFixed(2);
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const currentValue = parseFloat(inputElement.value) || 0;
+            const newValue = Math.max(0, currentValue - 1);
+            inputElement.value = newValue.toFixed(2);
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    
+    // Intercepter les clics sur les boutons spinner (plus difficile, optionnel)
+    inputElement.addEventListener('input', (e) => {
+        // Formater automatiquement avec 2 décimales quand l'utilisateur quitte le champ
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+            // Délai pour ne pas interférer avec la saisie en cours
+            setTimeout(() => {
+                if (document.activeElement !== inputElement) {
+                    inputElement.value = value.toFixed(2);
+                }
+            }, 100);
+        }
+    });
+    
+    // Formater quand l'utilisateur quitte le champ
+    inputElement.addEventListener('blur', (e) => {
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+            inputElement.value = value.toFixed(2);
+        }
+    });
+}
+
+
+// setupEditModalEventListeners() - méthode basée sur setupModalEventListeners() existante
+setupEditModalEventListeners(modal, originalTransaction) {
+    const form = modal.querySelector('#edit-transaction-form');
+    const categorySelect = modal.querySelector('#edit-category');
+    const labelInput = modal.querySelector('#edit-label');
+    
+    // Auto-remplissage du libellé basé sur la catégorie (même logique que setupModalEventListeners)
+    categorySelect.addEventListener('change', () => {
+        if (categorySelect.value && !labelInput.value) {
+            labelInput.value = categorySelect.value;
+        }
+        
+        // Auto-remplissage depuis les dépenses contraintes
+        this.autoFillConstrainedExpenseInEditModal(categorySelect.value, modal);
+    });
+
+    // Gestion de la soumission du formulaire (MODIFICATION au lieu d'ajout)
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleEditModalSubmit(modal, originalTransaction);
+    });
+
+    // Gestion des touches clavier
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+        }
+    });
+}
+
+// autoFillConstrainedExpenseInEditModal() - Mméthode basée sur autoFillConstrainedExpenseInModal() existante
+autoFillConstrainedExpenseInEditModal(category, modal) {
+    const constrainedExpenseMapping = {
+        'Loyer': 'loyer',
+        'EDF-GDF': 'edf', 
+        'Internet': 'internet',
+        'Remboursement crédit': 'credit',
+        'Impôt': 'impot', 
+        'Autres': 'autres',
+        'Assurance maison': 'assuranceMaison',
+        'Assurance voiture': 'assuranceVoiture'
+    };
+
+    const fixedExpenseKey = constrainedExpenseMapping[category];
+
+    if (fixedExpenseKey && this.fixedExpenses[fixedExpenseKey] > 0) {
+        const amountInput = modal.querySelector('#edit-amount');
+        if (amountInput) {
+            // Arrondir à l'euro près au lieu de .toFixed(2)
+            amountInput.value = this.fixedExpenses[fixedExpenseKey].toFixed(2);
+            
+            // Indication visuelle
+            amountInput.style.background = '#e8f5e8';
+            setTimeout(() => {
+                amountInput.style.background = '';
+            }, 2000);
+        }
+    }
+}
+
+// handleEditModalSubmit() - Méthode basée sur handleModalSubmit() existante
+// Dans app.js, remplacer la méthode handleEditModalSubmit() par cette version corrigée :
+
+handleEditModalSubmit(modal, originalTransaction) {
+    const errorElement = modal.querySelector('#edit-error-message');
+    errorElement.textContent = '';
+
+    // Récupérer les données du formulaire directement depuis les champs
+    const updatedData = {
+        label: modal.querySelector('#edit-label').value.trim(),
+        amount: parseFloat(modal.querySelector('#edit-amount').value),
+        category: modal.querySelector('#edit-category').value,
+        date: modal.querySelector('#edit-date').value,
+        type: modal.querySelector('#edit-type-expense').checked ? 'expense' : 'income'
+    };
+
+    // Validation
+    const error = this.validateTransaction(updatedData);
+    if (error) {
+        errorElement.textContent = error;
+        return;
+    }
+
+    try {
+        // *** SOLUTION : Utiliser directement l'ID original de la transaction ***
+        console.log('🔍 Transaction originale:', originalTransaction);
+        console.log('🔍 ID original:', originalTransaction.id, 'Type:', typeof originalTransaction.id);
+        console.log('🔍 Nouvelles données:', updatedData);
+
+        // Conversion de l'ID
+        const transactionId = parseInt(originalTransaction.id);
+        console.log('🔍 ID converti:', transactionId, 'Type:', typeof transactionId);
+
+        if (this.transactionManager) {
+            // *** NOUVELLE APPROCHE : Recherche et mise à jour en une seule opération ***
+            const allTransactions = this.transactionManager.getAllTransactions();
+            console.log('📋 Nombre total de transactions:', allTransactions.length);
+            
+            // Rechercher la transaction par plusieurs critères
+            let targetTransaction = null;
+            let targetIndex = -1;
+            
+            // 1. D'abord par ID exact
+            targetIndex = allTransactions.findIndex(t => t.id === transactionId);
+            if (targetIndex !== -1) {
+                targetTransaction = allTransactions[targetIndex];
+                console.log('✅ Transaction trouvée par ID exact:', targetTransaction.id);
+            }
+            
+            // 2. Si pas trouvé, chercher par critères multiples
+            if (targetIndex === -1) {
+                targetIndex = allTransactions.findIndex(t => 
+                    t.label === originalTransaction.label && 
+                    t.amount === originalTransaction.amount &&
+                    t.date === originalTransaction.date &&
+                    t.category === originalTransaction.category
+                );
+                
+                if (targetIndex !== -1) {
+                    targetTransaction = allTransactions[targetIndex];
+                    console.log('✅ Transaction trouvée par critères alternatifs:', targetTransaction.id);
+                }
+            }
+            
+            if (targetIndex === -1) {
+                throw new Error('Transaction introuvable. La transaction a peut-être été supprimée par ailleurs.');
+            }
+            
+            // *** MISE À JOUR DIRECTE dans le tableau du TransactionManager ***
+            // Créer la transaction mise à jour en conservant l'ID original
+            const updatedTransaction = {
+                ...targetTransaction,
+                ...updatedData,
+                id: targetTransaction.id // Conserver l'ID trouvé
+            };
+            
+            // Validation des nouvelles données
+            const validationError = this.transactionManager.validateTransaction(updatedTransaction);
+            if (validationError) {
+                throw new Error(validationError);
+            }
+            
+            // Mettre à jour directement dans le tableau
+            this.transactionManager.transactions[targetIndex] = updatedTransaction;
+            
+            // Sauvegarder
+            this.transactionManager.saveTransactions();
+            this.transactionManager.triggerTransactionChange();
+            
+            // Synchroniser les données locales
+            this.transactions = this.transactionManager.getAllTransactions();
+            
+            console.log('✅ Transaction mise à jour avec succès:', updatedTransaction.id);
+            
+        } else {
+            // Fallback vers l'ancienne méthode
+            console.log('🔄 Utilisation de la méthode fallback');
+            const index = this.transactions.findIndex(t => 
+                parseInt(t.id) === transactionId || 
+                t.id === originalTransaction.id ||
+                (t.label === originalTransaction.label && 
+                 t.amount === originalTransaction.amount &&
+                 t.date === originalTransaction.date)
+            );
+            
+            if (index !== -1) {
+                this.transactions[index] = { 
+                    ...this.transactions[index], 
+                    ...updatedData 
+                };
+                StorageManager.saveTransactions(this.transactions);
+                console.log('✅ Transaction mise à jour via fallback');
+            } else {
+                throw new Error('Transaction non trouvée dans le tableau local');
+            }
+        }
+
+        // Mettre à jour l'affichage
+        this.updateAllComponents();
+        
+        // Fermer la modal
+        modal.remove();
+        
+        console.log('✅ Transaction modifiée avec succès');
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de la modification:', error);
+        errorElement.textContent = error.message;
+        
+        // Débogage en cas d'erreur
+        console.log('🔍 Détails de débogage:');
+        console.log('- Transaction originale:', originalTransaction);
+        console.log('- TransactionManager disponible:', !!this.transactionManager);
+        if (this.transactionManager) {
+            console.log('- Nombre de transactions:', this.transactionManager.getAllTransactions().length);
+            console.log('- Liste des IDs:', this.transactionManager.getAllTransactions().map(t => ({ id: t.id, type: typeof t.id, label: t.label })));
+        }
+    }
+}
+// ALTERNATIVE : Méthode de récupération de transaction plus robuste
+getTransactionForEdit(transactionId) {
+    // Essayer plusieurs méthodes pour trouver la transaction
+    let transaction = null;
+    
+    // Méthode 1 : Via TransactionManager
+    if (this.transactionManager) {
+        try {
+            transaction = this.transactionManager.getTransaction(parseInt(transactionId));
+        } catch (e) {
+            console.warn('Transaction non trouvée via TransactionManager');
+        }
+    }
+    
+    // Méthode 2 : Via le tableau local (fallback)
+    if (!transaction) {
+        transaction = this.transactions.find(t => 
+            t.id === parseInt(transactionId) || 
+            t.id === transactionId ||
+            t.id === String(transactionId)
+        );
+    }
+    
+    return transaction;
+}
+
+// *** MODIFICATION DANS editTransaction() POUR UTILISER LA MÉTHODE ROBUSTE ***
+editTransaction(id) {
+    console.log('🔧 Début édition transaction:', id, 'Type:', typeof id);
+    
+    // Utiliser la méthode robuste
+    const transaction = this.getTransactionForEdit(id);
+                       
+    if (!transaction) {
+        alert('Transaction introuvable');
+        console.error('❌ Transaction non trouvée:', id);
+        console.log('📋 Transactions disponibles:', this.transactions.map(t => ({ id: t.id, type: typeof t.id, label: t.label })));
+        return;
+    }
+
+    console.log('📝 Transaction trouvée pour édition:', transaction);
+
+    // Ouvrir la modal d'édition
+    this.openEditTransactionModal(transaction);
+}
+
  // ===== CALENDAR METHODS =====
     previousMonth() {
         this.currentDate.setMonth(this.currentDate.getMonth() - 1);
@@ -1410,124 +1928,126 @@ createCalendarDay(day, month, year, isOtherMonth) {
     }
 
     // ===== NOUVELLE MÉTHODE POUR OUVRIR LA MODAL =====
-    openTransactionModal(date) {
-        // Formater la date pour l'affichage
-        const formattedDate = date.toLocaleDateString('fr-FR', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-        
-        // Créer la modal
-        const modal = document.createElement('div');
-        modal.className = 'transaction-modal-overlay';
-        modal.innerHTML = `
-            <div class="transaction-modal">
-                <div class="transaction-modal-header">
-                    <h3>💰 Nouvelle transaction</h3>
-                    <div class="transaction-modal-subtitle">${formattedDate}</div>
-                    <button class="modal-close" onclick="this.closest('.transaction-modal-overlay').remove()">×</button>
-                </div>
-                <div class="transaction-modal-content">
-                    <form id="modal-transaction-form">
-                        <!-- Catégorie et Libellé -->
-                        <div class="modal-form-row">
-                            <div class="modal-form-group">
-                                <label for="modal-category">Catégorie</label>
-                                <select id="modal-category" required>
-                                    <option value="">Sélectionner...</option>
-                                    <option value="Alimentation">🍕 Alimentation</option>
-                                    <option value="Assurance maison">🏠🛡️ Assurance maison</option>
-                                    <option value="Assurance voiture">🚗🛡️ Assurance voiture</option>
-                                    <option value="Cigarettes">🚬 Cigarettes</option>
-                                    <option value="EDF-GDF">⚡ EDF-GDF</option>
-                                    <option value="Essence">⛽ Essence</option>
-                                    <option value="Impôt">🏛️ Impôt</option>
-                                    <option value="Internet">🌐 Internet</option>
-                                    <option value="Internet Outils">🔧 Internet Outils</option>
-                                    <option value="Logement">🏠 Logement</option>
-                                    <option value="Loisirs">🎬 Loisirs</option>
-                                    <option value="Loyer">🏠 Loyer</option>
-                                    <option value="Prêt">💳 Prêt</option>
-                                    <option value="Remboursement crédit">🏦 Remboursement crédit</option>
-                                    <option value="Retrait DAB">🏧 Retrait DAB</option>
-                                    <option value="Salaire">💼 Salaire</option>
-                                    <option value="Santé">🏥 Santé</option>
-                                    <option value="Transport">🚗 Transport</option>
-                                    <option value="Vêtements">👕 Vêtements</option>
-                                    <option value="Autres">📦 Autres</option>
-                                </select>
-                            </div>
-                            
-                            <div class="modal-form-group">
-                                <label for="modal-label">Libellé</label>
-                                <input type="text" id="modal-label" placeholder="Description" required />
-                            </div>
-                        </div>
-                        
-                        <!-- Montant et Type (sur la même ligne) -->
-                        <div class="modal-form-row">
-                            <div class="modal-form-group">
-                                <label for="modal-amount">Montant (€)</label>
-                                <input type="number" id="modal-amount" placeholder="0.00" step="0.01" required />
-                            </div>
-                            
-                            <div class="modal-form-group">
-                                <label>&nbsp;</label> <!-- Espace pour l'alignement -->
-                                <div class="modal-radio-group">
-                                    <label class="modal-radio-label expense-option">
-                                        <input type="radio" id="modal-type-expense" name="modal-type" value="expense" checked />
-                                        <span class="radio-custom"></span>
-                                        <span>💸 Dépense</span>
-                                    </label>
-                                    <label class="modal-radio-label income-option">
-                                        <input type="radio" id="modal-type-income" name="modal-type" value="income" />
-                                        <span class="radio-custom"></span>
-                                        <span>💰 Revenu</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Date (cachée et bloquée) -->
-                        <input type="hidden" id="modal-date" value="${this.formatDateString(date)}" />
-                        
-                        <!-- Boutons -->
-                        <div class="modal-form-actions">
-                            <button type="button" class="btn-secondary modal-cancel" onclick="this.closest('.transaction-modal-overlay').remove()">
-                                ❌ Annuler
-                            </button>
-                            <button type="submit" class="btn-success">
-                                ✅ Ajouter
-                            </button>
-                        </div>
-                        
-                        <div class="modal-error-message" id="modal-error-message"></div>
-                    </form>
-                </div>
+openTransactionModal(date) {
+    // Formater la date pour l'affichage
+    const formattedDate = date.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    // Créer la modal
+    const modal = document.createElement('div');
+    modal.className = 'transaction-modal-overlay';
+    modal.innerHTML = `
+        <div class="transaction-modal">
+            <div class="transaction-modal-header">
+                <h3>💰 Nouvelle transaction</h3>
+                <div class="transaction-modal-subtitle">${formattedDate}</div>
+                <button class="modal-close" onclick="this.closest('.transaction-modal-overlay').remove()">×</button>
             </div>
-        `;
+            <div class="transaction-modal-content">
+                <form id="modal-transaction-form">
+                    <!-- Catégorie et Libellé -->
+                    <div class="modal-form-row">
+                        <div class="modal-form-group">
+                            <label for="modal-category">Catégorie</label>
+                            <select id="modal-category" required>
+                                <option value="">Sélectionner...</option>
+                                <option value="Alimentation">🍕 Alimentation</option>
+                                <option value="Assurance maison">🏠🛡️ Assurance maison</option>
+                                <option value="Assurance voiture">🚗🛡️ Assurance voiture</option>
+                                <option value="Cigarettes">🚬 Cigarettes</option>
+                                <option value="EDF-GDF">⚡ EDF-GDF</option>
+                                <option value="Essence">⛽ Essence</option>
+                                <option value="Impôt">🏛️ Impôt</option>
+                                <option value="Internet">🌐 Internet</option>
+                                <option value="Internet Outils">🔧 Internet Outils</option>
+                                <option value="Logement">🏠 Logement</option>
+                                <option value="Loisirs">🎬 Loisirs</option>
+                                <option value="Loyer">🏠 Loyer</option>
+                                <option value="Prêt">💳 Prêt</option>
+                                <option value="Remboursement crédit">🏦 Remboursement crédit</option>
+                                <option value="Retrait DAB">🏧 Retrait DAB</option>
+                                <option value="Salaire">💼 Salaire</option>
+                                <option value="Santé">🏥 Santé</option>
+                                <option value="Transport">🚗 Transport</option>
+                                <option value="Vêtements">👕 Vêtements</option>
+                                <option value="Autres">📦 Autres</option>
+                            </select>
+                        </div>
+                        <div class="modal-form-group">
+                            <label for="modal-label">Libellé</label>
+                            <input type="text" id="modal-label" placeholder="Description" required />
+                        </div>
+                    </div>
+                    
+                    <!-- Montant et Type -->
+                    <div class="modal-form-row">
+                        <div class="modal-form-group">
+                            <label for="modal-amount">Montant (€)</label>
+                            <input type="number" id="modal-amount" placeholder="0.00" step="0.01" required />
+                        </div>
+                        
+                        <div class="modal-form-group">
+                            <label>Type</label>
+                            <div class="modal-radio-group">
+                                <label class="modal-radio-label expense-option">
+                                    <input type="radio" id="modal-type-expense" name="modal-type" value="expense" checked />
+                                    <span class="radio-custom"></span>
+                                    <span>💸 Dépense</span>
+                                </label>
+                                <label class="modal-radio-label income-option">
+                                    <input type="radio" id="modal-type-income" name="modal-type" value="income" />
+                                    <span class="radio-custom"></span>
+                                    <span>💰 Revenu</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Date (cachée et bloquée) -->
+                    <input type="hidden" id="modal-date" value="${this.formatDateString(date)}" />
+                    
+                    <!-- Boutons -->
+                    <div class="modal-form-actions">
+                        <button type="button" class="btn-secondary modal-cancel" onclick="this.closest('.transaction-modal-overlay').remove()">
+                            ❌ Annuler
+                        </button>
+                        <button type="submit" class="btn-success">
+                            ✅ Ajouter
+                        </button>
+                    </div>
+                    
+                    <div class="modal-error-message" id="modal-error-message"></div>
+                </form>
+            </div>
+        </div>
+    `;
 
-        // Ajouter la modal au DOM
-        document.body.appendChild(modal);
+    // Ajouter la modal au DOM
+    document.body.appendChild(modal);
 
-        // Setup des event listeners pour la modal
-        this.setupModalEventListeners(modal, date);
+    // Setup des event listeners pour la modal
+    this.setupModalEventListeners(modal, date);
+    
+    // *** NOUVEAU : Setup de l'incrémentation personnalisée ***
+    this.setupCustomIncrement(modal.querySelector('#modal-amount'));
 
-        // Focus sur le premier champ
-        setTimeout(() => {
-            const categorySelect = modal.querySelector('#modal-category');
-            if (categorySelect) categorySelect.focus();
-        }, 100);
+    // Focus sur le premier champ
+    setTimeout(() => {
+        const categorySelect = modal.querySelector('#modal-category');
+        if (categorySelect) categorySelect.focus();
+    }, 100);
 
-        // Fermer en cliquant à l'extérieur
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
+    // Fermer en cliquant à l'extérieur
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
 
     // ===== SETUP DES EVENT LISTENERS POUR LA MODAL =====
     setupModalEventListeners(modal, date) {
@@ -1741,6 +2261,8 @@ createCalendarDay(day, month, year, isOtherMonth) {
         // Setup des event listeners pour la modal
         this.setupModalEventListeners(modal, date);
 
+		this.setupCustomIncrement(modal.querySelector('#modal-amount'));
+		
         // Focus sur le premier champ
         setTimeout(() => {
             const categorySelect = modal.querySelector('#modal-category');
